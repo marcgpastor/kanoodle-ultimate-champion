@@ -10,7 +10,7 @@
 
 // ← Enganxa-hi la URL del teu Worker, sense barra final.
 //   Per exemple: 'https://kanoodle-api.elteusubdomini.workers.dev'
-const BASE = '';
+const BASE = 'https://kanoodle-api.marc-gp.workers.dev';
 
 const PKEY = 'kanoodle.player.v1';   // { token, id, name }
 const BKEY = 'kanoodle.board.v1';    // { at, players, times }

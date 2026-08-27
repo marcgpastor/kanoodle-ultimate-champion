@@ -5,7 +5,7 @@ compatibility_date = "2026-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "kanoodle"
-database_id = "POSA-HI-L-ID-QUE-ET-DONI-WRANGLER"
+database_id = "0e7861e9-49bc-40bf-9895-693e36b74332"
 
 [vars]
 # D'on s'accepten peticions. Afegeix-hi el teu domini si en canvies.
