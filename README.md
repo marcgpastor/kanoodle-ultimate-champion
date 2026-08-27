@@ -24,6 +24,10 @@ integrat i guarda els teus temps al navegador.
   tens filtrats, amb el total en marxa, l'opció de saltar-ne un i un resum al
   final que compara cada temps amb el teu rècord anterior. Si tanques la pàgina
   a mitges, la sessió t'espera.
+- **Pistes**: si t'encalles, toca una peça i te la dibuixa al lloc que li toca,
+  amb contorn de punts perquè no la confonguis amb el diagrama original. També
+  pots demanar-ne una i prou (comença per les peces amb menys llocs possibles)
+  o la solució sencera.
 - **Estadístiques**: progrés 2D/3D, activitat de les últimes 12 setmanes,
   tots els intents al llarg del temps, repartiment per durada i els reptes que
   se t'han donat millor i pitjor.
@@ -43,6 +47,7 @@ a `localStorage`: només viuen en aquest navegador i no s'envien enlloc.
 |---|---|
 | `Espai` | Comença / atura el rellotge |
 | `F` | Afegeix o treu dels favorits |
+| `P` | Demana una pista |
 | `←` `→` | Repte anterior / següent |
 | `Esc` | Torna a l'índex |
 
@@ -97,7 +102,39 @@ Els 500 reptes passen la comprovació amb una excepció coneguda:
 
 - **Repte 302**: el quadern imprès només hi dibuixa 1 boleta de la peça D (rosa
   clar) en comptes de 5. Sembla una errata de la guia; la web ho reprodueix tal
-  com surt i ho avisa.
+  com surt i ho avisa. El resolutor sap detectar-ho: torna la D a la reserva i
+  troba on anava de debò, tot mantenint la boleta que sí que surt impresa.
+
+## El resolutor
+
+`js/solver.js` resol qualsevol dels 500 reptes com un problema de cobertura
+exacta: cal omplir els 55 forats amb les peces que queden, cadascuna una vegada.
+La cerca ataca sempre el forat amb menys col·locacions possibles i descarta de
+seguida les bosses d'aire massa petites per a cap peça. Va en un `Worker`
+(`js/worker.js`) perquè la pàgina no s'encalli mentre calcula.
+
+En 2D la cosa és senzilla: cada peça té 8 orientacions sobre una graella d'11x5.
+
+En 3D no tant. La piràmide són 55 boles apilades en cúbic centrat a les cares.
+Amb la capa `k = 0` a la base i `k = 4` al cim, el centre de la bola `(k, i, j)`
+cau a `(i + k/2, j + k/2, k/√2)`; multiplicant per 2 les dues primeres
+coordenades queda la xarxa d'enters `(2i + k, 2j + k, k)`, on les 12 direccions
+entre boles que es toquen són `(±2,0,0)`, `(0,±2,0)` i `(±1,±1,±1)`. Com que les
+peces són planes, només es poden posar en plans generats per dos vectors
+unitaris perpendiculars: en surten 24 parells, és a dir **tres plans** —
+l'horitzontal i dos de diagonals— amb les 8 simetries de cadascun.
+
+Que els 500 reptes es resolguin amb aquest model és la millor comprovació que
+l'extracció del PDF és correcta: si la geometria de la piràmide fos una altra,
+gairebé cap dels 250 reptes 3D no tindria solució.
+
+```bash
+cd tools && node solve-all.js
+```
+
+comprova els 500 i verifica cada solució de manera independent: que cap peça se
+solapi, que es cobreixin els 55 forats i que cada peça col·locada sigui una
+posició legal de la seva forma.
 
 ## Estructura
 
@@ -105,7 +142,9 @@ Els 500 reptes passen la comprovació amb una excepció coneguda:
 index.html          pàgina única
 css/style.css       estils
 css/fonts.css       declaracions @font-face
-js/app.js           tota la lògica
+js/app.js           tota la lògica de la interfície
+js/solver.js        resolutor de cobertura exacta (2D i 3D)
+js/worker.js        el resolutor en un fil a part
 data/puzzles.json   els 500 reptes, formes de les peces i geometria del 3D
 fonts/              woff2 (SIL Open Font License 1.1, vegeu fonts/README.md)
 icons/              icones de la instal·lació al mòbil

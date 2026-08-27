@@ -27,6 +27,8 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 let store = {};              // { "147": [{t, d}] }
 let favs  = new Set();
 let session = null;          // { ids, idx, results, startedAt }
+const solutions = {};        // repte -> solució del resolutor (o null)
+let shownHints = new Set();  // lletres de les peces revelades ara mateix
 let sessionLog = [];         // sessions acabades
 let prefs = { mode: 'up', target: 180000, sound: true, autoTarget: true };
 
@@ -88,42 +90,56 @@ function gloss(defs) {
   defs.append(g);
 }
 
-/** una boleta: buida (forat) o amb peça (color + lletra) */
-function ball(g, cx, cy, r, letter) {
+/** una boleta: buida, amb peça del diagrama, o fantasma si ve d'una pista */
+function ball(g, cx, cy, r, letter, ghost) {
   if (letter === '.') {
     g.append(svgEl('circle', { cx, cy, r, fill: '#241E1B', stroke: '#3D3532', 'stroke-width': r * .1 }));
     return;
   }
-  g.append(svgEl('circle', { cx, cy, r, fill: DATA.colors[letter], stroke: '#100C0A', 'stroke-width': r * .09 }));
-  g.append(svgEl('circle', { cx, cy, r, fill: 'url(#gloss)' }));
+  if (ghost) {
+    g.append(svgEl('circle', { cx, cy, r, fill: '#241E1B' }));
+    g.append(svgEl('circle', {
+      cx, cy, r: r * .93, fill: DATA.colors[letter], 'fill-opacity': .38,
+      stroke: DATA.colors[letter], 'stroke-width': r * .13,
+      'stroke-dasharray': `${r * .42} ${r * .3}`
+    }));
+  } else {
+    g.append(svgEl('circle', { cx, cy, r, fill: DATA.colors[letter], stroke: '#100C0A', 'stroke-width': r * .09 }));
+    g.append(svgEl('circle', { cx, cy, r, fill: 'url(#gloss)' }));
+  }
   const t = svgEl('text', {
-    x: cx, y: cy, fill: '#16110F', 'text-anchor': 'middle', 'dominant-baseline': 'central',
+    x: cx, y: cy, fill: ghost ? DATA.colors[letter] : '#16110F',
+    'fill-opacity': ghost ? .95 : 1,
+    'text-anchor': 'middle', 'dominant-baseline': 'central',
     'font-family': 'IBM Plex Sans, sans-serif', 'font-weight': '600', 'font-size': r * 1.15
   });
   t.textContent = letter;
   g.append(t);
 }
 
-function draw2D(rows) {
+function draw2D(rows, ghosts) {
   const P = 1, R = .45, PAD = .42;
   const w = 11 * P + PAD * 2, h = 5 * P + PAD * 2;
   const svg = svgEl('svg', { viewBox: `0 0 ${w} ${h}`, role: 'img', 'aria-label': 'Diagrama del tauler' });
   const defs = svgEl('defs', {}); gloss(defs); svg.append(defs);
   svg.append(svgEl('rect', { x: 0, y: 0, width: w, height: h, rx: .55, fill: '#0B0807' }));
   const g = svgEl('g', {});
-  rows.forEach((row, r) => [...row].forEach((ch, c) =>
-    ball(g, PAD + c * P + P / 2, PAD + r * P + P / 2, R, ch)));
+  rows.forEach((row, r) => [...row].forEach((ch, c) => {
+    const id = r * 11 + c;
+    const gh = ghosts && ghosts.get(id);
+    ball(g, PAD + c * P + P / 2, PAD + r * P + P / 2, R, gh || ch, !!gh && ch === '.');
+  }));
   svg.append(g);
   return svg;
 }
 
-function draw3D(layers) {
+function draw3D(layers, ghosts) {
   const tpl = DATA.tpl3d, LEAD = .13;           // espai per a l'etiqueta de cada capa
   const W = 1 + LEAD, H = tpl.h + .06;
   const svg = svgEl('svg', { viewBox: `${-LEAD} -.03 ${W} ${H}`, role: 'img', 'aria-label': 'Diagrama de la piràmide' });
   const defs = svgEl('defs', {}); gloss(defs); svg.append(defs);
   const g = svgEl('g', {});
-  let row = 0;
+  let row = 0, id = 0;
   layers.forEach((layer, li) => {
     const first = tpl.rows[row];
     const label = svgEl('text', {
@@ -134,7 +150,11 @@ function draw3D(layers) {
     g.append(label);
     layer.forEach(line => {
       const geo = tpl.rows[row++];
-      [...line].forEach((ch, i) => ball(g, geo[i][0], geo[i][1], geo[i][2], ch));
+      [...line].forEach((ch, i) => {
+        const gh = ghosts && ghosts.get(id);
+        ball(g, geo[i][0], geo[i][1], geo[i][2], gh || ch, !!gh && ch === '.');
+        id++;
+      });
     });
   });
   svg.append(g);
@@ -294,10 +314,8 @@ function openLevel(n, push = true) {
   $('#lv-note').hidden = !note;
   if (note) $('#lv-note').textContent = note;
 
-  const box = $('#lv-diagram');
-  box.textContent = '';
-  box.className = 'diagram' + (is3D(n) ? ' diagram--3d' : '');
-  box.append(is3D(n) ? draw3D(layout(n)) : draw2D(layout(n)));
+  shownHints = new Set();
+  paintDiagram();
 
   $('#lv-caption').hidden = !is3D(n);
   if (is3D(n)) $('#lv-caption').textContent = 'La capa 5×5 és la base de la piràmide; la 1×1, el cim.';
@@ -309,10 +327,15 @@ function openLevel(n, push = true) {
   pieces.textContent = '';
   if (!todo.length) pieces.append(el('p', 'empty', 'Cap: el diagrama ja és complet.'));
   for (const L of todo) {
-    const p = el('div', 'piece');
+    const p = el('button', 'piece');
+    p.type = 'button';
+    p.dataset.piece = L;
+    p.title = `Ensenya’m on va la peça ${L}`;
     p.append(drawPiece(L), el('span', null, L));
+    p.onclick = () => reveal([L]);
     pieces.append(p);
   }
+  $('#hintbar').hidden = !todo.length;
 
   $('#prev').disabled = n === 1;
   $('#next').disabled = n === 500;
@@ -321,6 +344,7 @@ function openLevel(n, push = true) {
   renderPresets();
   applyTarget();
   paintSession();
+  paintHints();
   show('level');
   if (push && location.hash !== '#' + n) location.hash = '#' + n;
   window.scrollTo(0, 0);
@@ -706,6 +730,113 @@ function toplist(items) {
   return ol;
 }
 
+/* ---------------- pistes ---------------- */
+
+let worker, seq = 0;
+const pending = new Map();
+
+function getWorker() {
+  if (worker !== undefined) return worker;
+  try {
+    worker = new Worker('js/worker.js');
+    worker.onmessage = e => {
+      const cb = pending.get(e.data.id);
+      pending.delete(e.data.id);
+      if (cb) cb(e.data.res);
+    };
+    worker.onerror = () => {
+      worker = null;
+      for (const [id, cb] of pending) { pending.delete(id); cb(null); }
+    };
+  } catch (e) { worker = null; }
+  return worker;
+}
+
+/** Demana la solució al fil de càlcul; si no n'hi ha, la fa aquí mateix. */
+function askSolver(n, done) {
+  const grid = layout(n), dim = is3D(n) ? 3 : 2;
+  const w = getWorker();
+  if (w) {
+    const id = ++seq;
+    pending.set(id, done);
+    // si el fil de càlcul es queda mut, no deixem els botons penjats
+    setTimeout(() => { if (pending.delete(id)) done(null); }, 20000);
+    w.postMessage({ id, grid, dim, shapes: DATA.shapes, sizes: DATA.sizes });
+    return;
+  }
+  setTimeout(() => {
+    let r = null;
+    try { r = KanoodleSolver.solve(grid, dim, DATA.shapes, DATA.sizes); } catch (e) { r = null; }
+    done(r && r.ok ? r : null);
+  }, 30);
+}
+
+function withSolution(n, cb) {
+  if (n in solutions) return cb(solutions[n]);
+  const btns = $$('.hintbar .btn');
+  btns.forEach(b => b.dataset.busy = '1');
+  $('#hintnote').textContent = 'Calculant la solució…';
+  askSolver(n, res => {
+    solutions[n] = res;
+    btns.forEach(b => delete b.dataset.busy);
+    if (current === n) cb(res);
+  });
+}
+
+const ghostMap = () => {
+  const sol = solutions[current];
+  const m = new Map();
+  if (!sol) return m;
+  for (const p of sol.pieces)
+    if (shownHints.has(p.piece)) for (const c of p.cells) m.set(c, p.piece);
+  return m;
+};
+
+function paintDiagram() {
+  const box = $('#lv-diagram');
+  box.textContent = '';
+  box.className = 'diagram' + (is3D(current) ? ' diagram--3d' : '');
+  const ghosts = ghostMap();
+  box.append(is3D(current) ? draw3D(layout(current), ghosts) : draw2D(layout(current), ghosts));
+}
+
+function paintHints() {
+  const sol = solutions[current];
+  const total = sol ? sol.pieces.length : 0;
+  const shown = shownHints.size;
+  $('#hint').textContent = shown ? 'Una altra pista' : 'Dona’m una pista';
+  $('#hint').hidden = !!sol && shown >= total;
+  $('#hintall').hidden = !!sol && shown >= total;
+  $('#hinthide').hidden = shown === 0;
+  $('#hintnote').textContent =
+    !sol && (current in solutions) ? 'No he sabut resoldre aquest repte.'
+    : shown === 0 ? 'Toca una peça i et diré on va.'
+    : shown >= total ? 'Aquesta és una solució sencera.' + brokenNote(sol)
+    : `${shown} ${shown === 1 ? 'peça' : 'peces'} de ${total}.` + brokenNote(sol);
+  $$('#lv-pieces .piece').forEach(p => p.classList.toggle('is-shown', shownHints.has(p.dataset.piece)));
+  paintDiagram();
+}
+
+/** al repte 302 el quadern dibuixa una peça incompleta; el resolutor la recol·loca */
+const brokenNote = sol => sol && sol.broken.length
+  ? ` Hi entra també la peça ${sol.broken.join(' i ')}, que al quadern surt incompleta.`
+  : '';
+
+function reveal(letters) {
+  withSolution(current, sol => {
+    if (!sol) return paintHints();
+    for (const L of letters) if (sol.pieces.some(p => p.piece === L)) shownHints.add(L);
+    paintHints();
+  });
+}
+
+const revealNext = () => withSolution(current, sol => {
+  if (!sol) return paintHints();
+  const next = sol.order.find(L => !shownHints.has(L));
+  if (next) shownHints.add(next);
+  paintHints();
+});
+
 /* ---------------- mode sessió ---------------- */
 
 const sessionLevel = () => session ? session.ids[session.idx] : null;
@@ -942,6 +1073,13 @@ function wire() {
   });
   $('#sessiongo').onclick = () => { dlg.close(); startSession(sessionCount); };
 
+  $('#hint').onclick    = revealNext;
+  $('#hintall').onclick = () => withSolution(current, sol => {
+    if (sol) for (const p of sol.pieces) shownHints.add(p.piece);
+    paintHints();
+  });
+  $('#hinthide').onclick = () => { shownHints = new Set(); paintHints(); };
+
   $('#sessionquit').onclick = () => quitSession();
   $('#sessionskip').onclick = () => sessionAdvance({ n: current, skipped: true });
   $('#sessionback').onclick = backToIndex;
@@ -1052,6 +1190,7 @@ function wire() {
     if (current === null) return;
     if (e.key === 'Escape')          closeLevel();
     else if (e.key === 'f' || e.key === 'F') $('#fav').click();
+    else if (e.key === 'p' || e.key === 'P') { if (!$('#hint').hidden) $('#hint').click(); }
     else if (e.key === 'ArrowLeft'  && current > 1)   openLevel(current - 1);
     else if (e.key === 'ArrowRight' && current < 500) openLevel(current + 1);
     else if (e.code === 'Space') { e.preventDefault(); running ? stopTimer() : startTimer(); }
@@ -1075,6 +1214,18 @@ function route() {
   const n = Number(h);
   if (n >= 1 && n <= 500) return openLevel(n, false);
   closeLevel();
+}
+
+/** El primer càlcul paga la compilació i la llista de col·locacions. Ho anem
+    fent al fil de càlcul de seguida, que allà no molesta ningú. */
+function warmSolver() {
+  const w = getWorker();
+  if (!w) return;
+  for (const [n, dim] of [[1, 2], [251, 3]]) {
+    const id = ++seq;
+    pending.set(id, () => {});
+    w.postMessage({ id, grid: dim === 3 ? DATA.p3d[n] : DATA.p2d[n], dim, shapes: DATA.shapes, sizes: DATA.sizes });
+  }
 }
 
 /* ---------------- funciona sense connexió ---------------- */
@@ -1112,6 +1263,7 @@ fetch('data/puzzles.json')
     setMode(prefs.mode);
     route();
     registerSW();
+    warmSolver();
     if (session && current === null) {
       toast(`Tens una sessió a mitges: repte ${session.idx + 1} de ${session.ids.length}.`);
     }

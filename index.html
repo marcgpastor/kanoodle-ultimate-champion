@@ -136,6 +136,12 @@
       <section class="pieces">
         <h3>Peces que has de col·locar <span id="lv-pcount"></span></h3>
         <div class="pieces__grid" id="lv-pieces"></div>
+        <div class="hintbar" id="hintbar">
+          <button type="button" id="hint" class="btn btn--ghost">Dona'm una pista</button>
+          <button type="button" id="hintall" class="btn btn--ghost">Ensenya-m'ho tot</button>
+          <button type="button" id="hinthide" class="btn btn--ghost" hidden>Amaga les pistes</button>
+          <span class="hintbar__note" id="hintnote">Toca una peça i et diré on va.</span>
+        </div>
       </section>
     </div>
 
@@ -209,6 +215,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<script src="js/solver.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

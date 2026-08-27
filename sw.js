@@ -1,6 +1,6 @@
 /* Service worker: fa que la web tiri sense connexió.
    Puja VERSION quan canviïn els fitxers i els navegadors se'ls tornaran a baixar. */
-const VERSION = 'v1';
+const VERSION = 'v5';
 const CACHE   = 'kanoodle-' + VERSION;
 
 const ASSETS = [
@@ -17,6 +17,8 @@ const ASSETS = [
   './fonts/ibm-plex-mono-600-latin.woff2',
   './fonts/ibm-plex-mono-600-latin-ext.woff2',
   './js/app.js',
+  './js/solver.js',
+  './js/worker.js',
   './data/puzzles.json',
   './manifest.json',
   './icons/icon-192.png',
