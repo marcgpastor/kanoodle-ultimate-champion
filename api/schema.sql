@@ -9,14 +9,30 @@ CREATE TABLE IF NOT EXISTS players (
   revoked    INTEGER NOT NULL DEFAULT 0
 );
 
--- Només el millor temps de cada jugador a cada repte: és tot el que necessita
--- una classificació, i manté la base minúscula.
-CREATE TABLE IF NOT EXISTS times (
+-- Cada intent cronometrat, no només el millor: així en canviar de navegador
+-- recuperes l'historial sencer. La data fa d'identificador de l'intent, cosa
+-- que permet fusionar dos navegadors sense haver de resoldre cap conflicte.
+CREATE TABLE IF NOT EXISTS runs (
   player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
   puzzle    INTEGER NOT NULL,
   ms        INTEGER NOT NULL,
   at        TEXT    NOT NULL,
+  PRIMARY KEY (player_id, puzzle, at)
+);
+
+CREATE INDEX IF NOT EXISTS runs_puzzle ON runs(puzzle);
+CREATE INDEX IF NOT EXISTS runs_player ON runs(player_id);
+
+CREATE TABLE IF NOT EXISTS favs (
+  player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  puzzle    INTEGER NOT NULL,
   PRIMARY KEY (player_id, puzzle)
 );
 
-CREATE INDEX IF NOT EXISTS times_puzzle ON times(puzzle);
+-- Les sessions acabades, una fila cadascuna perquè es fusionin soles.
+CREATE TABLE IF NOT EXISTS sessions (
+  player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  started_at TEXT    NOT NULL,
+  data       TEXT    NOT NULL,
+  PRIMARY KEY (player_id, started_at)
+);

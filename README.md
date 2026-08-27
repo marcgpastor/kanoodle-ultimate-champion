@@ -65,22 +65,31 @@ python3 -m http.server 8123
 I obre <http://localhost:8123>. Cal servidor: la pàgina carrega `data/puzzles.json`
 per `fetch`, i amb `file://` el navegador ho bloqueja.
 
-## Competir amb els amics
+## Comptes: els teus temps et segueixen
 
 Opcional i apagat per defecte. Mentre `BASE` estigui buit a dalt de
 `js/api.js`, tot això queda amagat i la web es comporta exactament com si no
 existís.
 
-Si l'engegues, hi ha una classificació compartida: cada jugador puja el seu
-millor temps de cada repte i veu com va la colla, tant a la vista general com
-al costat de cada repte.
+Si l'engegues, cada jugador té un compte i **les seves dades el segueixen d'un
+navegador a un altre**: temps (tots els intents, no només el millor), favorits
+i sessions. Obres el mateix enllaç al mòbil i hi trobes el que tenies a
+l'ordinador; el que facis en qualsevol dels dos acaba als altres.
+
+Com que cada intent es distingeix per la seva data, els navegadors es fusionen
+sols: no hi ha conflictes a resoldre ni s'esborra res per haver jugat en dos
+llocs. Si esborres un temps, s'esborra a tot arreu.
+
+De propina, hi ha una classificació compartida amb el millor temps de cada
+jugador a cada repte, tant a la vista general com al costat de cada repte.
 
 **S'hi entra només amb invitació.** No hi ha cap formulari de registre: tu
 crees una invitació des de `#invitacions` (que et demana la clau
 d'administració), et dona un enllaç amb un testimoni i el passes a qui vulguis.
-Qui l'obre tria el nom amb què sortirà i queda registrat. Pots revocar o
-esborrar qualsevol jugador quan vulguis. Ningú que no tingui un enllaç pot
-entrar ni veure res.
+Qui l'obre tria el nom i queda registrat; el mateix enllaç serveix per entrar
+des de qualsevol altre dispositiu, i des de `#classificacio` cadascú es pot
+tornar a copiar el seu. Pots revocar o esborrar qualsevol jugador quan vulguis.
+Ningú que no tingui un enllaç pot entrar ni veure res.
 
 El servidor és un Cloudflare Worker amb una base D1; les instruccions per
 posar-lo en marxa són a [`api/README.md`](api/README.md).

@@ -1,9 +1,12 @@
 # API de la classificació
 
-Cloudflare Worker + D1. Guarda els jugadors convidats i el millor temps de
-cadascun a cada repte. **Només s'hi entra amb invitació**: no hi ha cap
-formulari de registre obert, i sense un testimoni vàlid no es pot ni llegir la
-classificació.
+Cloudflare Worker + D1. Guarda els jugadors convidats i, de cadascun, tots els
+intents cronometrats, els favorits i les sessions: així en canviar de navegador
+es recupera tot. **Només s'hi entra amb invitació**: no hi ha cap formulari de
+registre obert, i sense un testimoni vàlid no es pot ni llegir la classificació.
+
+Els intents s'identifiquen per la data, de manera que dos navegadors es
+fusionen sols i pujar dues vegades el mateix no fa res.
 
 ## Posar-la en marxa
 
@@ -48,8 +51,7 @@ I posa `BASE = 'http://127.0.0.1:8787'` mentre proves.
 |---|---|---|
 | `POST /join` | qualsevol amb un testimoni | activa la invitació i tria el nom |
 | `GET /me` | jugador | qui ets |
-| `POST /times` | jugador | puja temps; només es guarda si millora el que hi havia |
-| `GET /board` | jugador | tots els jugadors i els seus millors temps |
+| `POST /sync` | jugador | puja el que hi hagi de nou i esborra el que calgui; torna la classificació i, amb `full`, tot el teu historial |
 | `POST /admin/invite` | `X-Admin-Key` | crea una invitació i torna el testimoni |
 | `GET /admin/players` | `X-Admin-Key` | qui has convidat i com va |
 | `POST /admin/revoke` | `X-Admin-Key` | treu o torna l'accés a algú |

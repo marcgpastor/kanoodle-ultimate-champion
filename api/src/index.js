@@ -6,6 +6,8 @@
 const MAX_PUZZLE = 500;
 const MAX_MS = 24 * 3600 * 1000;
 const MAX_NAME = 24;
+const MAX_BATCH = 2000;      // intents per petició
+const MAX_SESSIONS = 50;     // sessions que guardem de cada jugador
 
 /* ---------------- ajudes ---------------- */
 
@@ -86,39 +88,106 @@ async function join(request, env) {
   return json({ id: row.id, name });
 }
 
-async function putTimes(request, env, player) {
+/* ---------------- sincronització ---------------- */
+
+const okPuzzle = v => Number.isInteger(v) && v >= 1 && v <= MAX_PUZZLE;
+const okMs = v => Number.isFinite(v) && v >= 1 && v <= MAX_MS;
+const okDate = v => typeof v === 'string' && v.length >= 10 && v.length <= 40;
+
+/**
+ * Ho fa tot en una petició: puja el que hi hagi de nou, esborra el que calgui
+ * i torna l'estat. Els intents es distingeixen per la data, així que dos
+ * navegadors es fusionen sols i pujar dues vegades el mateix no fa res.
+ */
+async function sync(request, env, player) {
   const body = await request.json().catch(() => ({}));
-  const entries = Object.entries(body.times || {}).slice(0, 600);
-  const now = new Date().toISOString();
-  const stmt = env.DB.prepare(
-    'INSERT INTO times (player_id, puzzle, ms, at) VALUES (?, ?, ?, ?) ' +
-    'ON CONFLICT(player_id, puzzle) DO UPDATE SET ms = excluded.ms, at = excluded.at ' +
-    'WHERE excluded.ms < times.ms'
-  );
   const batch = [];
-  for (const [p, v] of entries) {
-    const puzzle = Number(p), ms = Math.round(Number(v));
-    if (!Number.isInteger(puzzle) || puzzle < 1 || puzzle > MAX_PUZZLE) continue;
-    if (!Number.isFinite(ms) || ms < 1 || ms > MAX_MS) continue;
-    batch.push(stmt.bind(player.id, puzzle, ms, now));
+
+  const addRuns = Array.isArray(body.addRuns) ? body.addRuns.slice(0, MAX_BATCH) : [];
+  if (addRuns.length) {
+    const stmt = env.DB.prepare(
+      'INSERT OR IGNORE INTO runs (player_id, puzzle, ms, at) VALUES (?, ?, ?, ?)'
+    );
+    for (const r of addRuns) {
+      if (!Array.isArray(r)) continue;
+      const puzzle = Number(r[0]), ms = Math.round(Number(r[1])), at = r[2];
+      if (!okPuzzle(puzzle) || !okMs(ms) || !okDate(at)) continue;
+      batch.push(stmt.bind(player.id, puzzle, ms, at));
+    }
   }
+
+  const delRuns = Array.isArray(body.delRuns) ? body.delRuns.slice(0, MAX_BATCH) : [];
+  if (delRuns.length) {
+    const stmt = env.DB.prepare('DELETE FROM runs WHERE player_id = ? AND puzzle = ? AND at = ?');
+    for (const r of delRuns) {
+      if (!Array.isArray(r)) continue;
+      const puzzle = Number(r[0]), at = r[1];
+      if (!okPuzzle(puzzle) || !okDate(at)) continue;
+      batch.push(stmt.bind(player.id, puzzle, at));
+    }
+  }
+
+  const favAdd = Array.isArray(body.favAdd) ? body.favAdd.slice(0, MAX_PUZZLE) : [];
+  if (favAdd.length) {
+    const stmt = env.DB.prepare('INSERT OR IGNORE INTO favs (player_id, puzzle) VALUES (?, ?)');
+    for (const v of favAdd) if (okPuzzle(Number(v))) batch.push(stmt.bind(player.id, Number(v)));
+  }
+  const favDel = Array.isArray(body.favDel) ? body.favDel.slice(0, MAX_PUZZLE) : [];
+  if (favDel.length) {
+    const stmt = env.DB.prepare('DELETE FROM favs WHERE player_id = ? AND puzzle = ?');
+    for (const v of favDel) if (okPuzzle(Number(v))) batch.push(stmt.bind(player.id, Number(v)));
+  }
+
+  const addSessions = Array.isArray(body.addSessions) ? body.addSessions.slice(0, MAX_SESSIONS) : [];
+  if (addSessions.length) {
+    const stmt = env.DB.prepare(
+      'INSERT OR IGNORE INTO sessions (player_id, started_at, data) VALUES (?, ?, ?)'
+    );
+    for (const sess of addSessions) {
+      if (!sess || !okDate(sess.startedAt)) continue;
+      const text = JSON.stringify(sess);
+      if (text.length > 8000) continue;
+      batch.push(stmt.bind(player.id, sess.startedAt, text));
+    }
+  }
+
   if (batch.length) await env.DB.batch(batch);
-  return json({ saved: batch.length });
+
+  const out = { board: await boardData(env) };
+
+  if (body.full) {
+    const runs = await env.DB.prepare(
+      'SELECT puzzle, ms, at FROM runs WHERE player_id = ? ORDER BY at'
+    ).bind(player.id).all();
+    const favs = await env.DB.prepare(
+      'SELECT puzzle FROM favs WHERE player_id = ? ORDER BY puzzle'
+    ).bind(player.id).all();
+    const sessions = await env.DB.prepare(
+      'SELECT data FROM sessions WHERE player_id = ? ORDER BY started_at DESC LIMIT ?'
+    ).bind(player.id, MAX_SESSIONS).all();
+
+    out.runs = runs.results.map(r => [r.puzzle, r.ms, r.at]);
+    out.favs = favs.results.map(r => r.puzzle);
+    out.sessions = sessions.results.map(r => { try { return JSON.parse(r.data); } catch { return null; } }).filter(Boolean);
+  }
+  return json(out);
 }
 
-async function board(env) {
+/** el millor temps de cada jugador a cada repte, calculat des dels intents */
+async function boardData(env) {
   const players = await env.DB.prepare(
     'SELECT id, name FROM players WHERE joined_at IS NOT NULL AND revoked = 0 ORDER BY id'
   ).all();
   const times = await env.DB.prepare(
-    'SELECT t.puzzle, t.player_id, t.ms FROM times t ' +
-    'JOIN players p ON p.id = t.player_id ' +
-    'WHERE p.joined_at IS NOT NULL AND p.revoked = 0'
+    'SELECT r.puzzle, r.player_id, MIN(r.ms) AS ms FROM runs r ' +
+    'JOIN players p ON p.id = r.player_id ' +
+    'WHERE p.joined_at IS NOT NULL AND p.revoked = 0 ' +
+    'GROUP BY r.puzzle, r.player_id'
   ).all();
-  return json({
+  return {
     players: players.results.map(p => [p.id, p.name]),
     times: times.results.map(t => [t.puzzle, t.player_id, t.ms]),
-  });
+  };
 }
 
 async function adminInvite(request, env) {
@@ -134,7 +203,7 @@ async function adminInvite(request, env) {
 async function adminPlayers(env) {
   const rows = await env.DB.prepare(
     'SELECT p.id, p.name, p.created_at, p.joined_at, p.revoked, ' +
-    '(SELECT COUNT(*) FROM times t WHERE t.player_id = p.id) AS times ' +
+    '(SELECT COUNT(*) FROM runs r WHERE r.player_id = p.id) AS times ' +
     'FROM players p ORDER BY p.id'
   ).all();
   return json({ players: rows.results });
@@ -146,7 +215,9 @@ async function adminUpdate(request, env, remove) {
   if (!Number.isInteger(id)) return json({ error: 'id no valid' }, 400);
   if (remove) {
     await env.DB.batch([
-      env.DB.prepare('DELETE FROM times WHERE player_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM runs WHERE player_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM favs WHERE player_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM sessions WHERE player_id = ?').bind(id),
       env.DB.prepare('DELETE FROM players WHERE id = ?').bind(id),
     ]);
   } else {
@@ -186,8 +257,7 @@ export default {
       if (!player || !player.joined_at) return json({ error: 'cal una invitacio' }, 401, cors);
 
       if (path === '/me') return json({ id: player.id, name: player.name }, 200, cors);
-      if (post && path === '/times') return withCors(await putTimes(request, env, player), cors);
-      if (path === '/board') return withCors(await board(env), cors);
+      if (post && path === '/sync') return withCors(await sync(request, env, player), cors);
 
       return json({ error: 'no existeix' }, 404, cors);
     } catch (err) {

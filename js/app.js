@@ -377,7 +377,9 @@ function renderTimes() {
     del.onclick = () => {
       store[current].splice(r.i, 1);
       if (!store[current].length) delete store[current];
-      saveTimes(); renderTimes();
+      saveTimes();
+      if (playing()) { API.markRunDeleted(current, r.d); syncNow(); }
+      renderTimes();
     };
     li.append(del);
     list.append(li);
@@ -756,20 +758,63 @@ function boardIndex() {
 }
 
 let syncing = false;
-async function syncNow(loud) {
+
+/** puja el que hi hagi de nou i, si cal, torna a baixar tot el teu historial */
+async function syncNow({ full = false, loud = false } = {}) {
   if (!playing() || syncing) return;
   syncing = true;
   try {
-    await API.sync(p => best(p));
+    const res = await API.sync({ store, favs: [...favs], sessions: sessionLog }, full);
+    if (res && full) applyRemote(res);
     paintWhoami();
-    if (current !== null) paintRivals();
+    if (current !== null) { paintRivals(); renderTimes(); }
     if (!$('#view-board').hidden) renderBoard();
-    if (loud) toast('Classificació al dia.');
+    if (loud) toast('Tot al dia.');
   } catch (e) {
     if (loud) toast(e.status === 401 ? 'La teva invitació ja no val.' : 'No he pogut connectar amb el servidor.');
   } finally {
     syncing = false;
   }
+}
+
+/** fusiona el que ve del servidor amb el que ja hi ha en aquest navegador */
+function applyRemote(res) {
+  let changed = false;
+
+  if (Array.isArray(res.runs)) {
+    const seen = new Map();               // repte -> conjunt de dates que ja tenim
+    for (const p in store) seen.set(p, new Set(store[p].map(r => r.d)));
+    for (const [puzzle, ms, at] of res.runs) {
+      const key = String(puzzle);
+      if (!seen.has(key)) { seen.set(key, new Set()); }
+      if (seen.get(key).has(at)) continue;
+      (store[key] = store[key] || []).push({ t: ms, d: at });
+      seen.get(key).add(at);
+      changed = true;
+    }
+    if (changed) saveTimes();
+  }
+
+  if (Array.isArray(res.favs)) {
+    const next = new Set(res.favs.map(Number));
+    if (next.size !== favs.size || [...next].some(n => !favs.has(n))) {
+      favs = next; saveFavs(); changed = true;
+    }
+  }
+
+  if (Array.isArray(res.sessions)) {
+    const have = new Set(sessionLog.map(s => s.startedAt));
+    let added = 0;
+    for (const s of res.sessions) if (s && !have.has(s.startedAt)) { sessionLog.push(s); added++; }
+    if (added) {
+      sessionLog.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+      sessionLog = sessionLog.slice(0, 50);
+      saveLog(); changed = true;
+    }
+  }
+
+  if (changed && $('#view-index').hidden === false) renderIndex();
+  return changed;
 }
 
 function paintWhoami() {
@@ -873,6 +918,28 @@ function renderBoard() {
 
   if (idx.at) host.append(el('p', 'hint', 'Última actualització: ' +
     new Date(idx.at).toLocaleString('ca-ES', { dateStyle: 'medium', timeStyle: 'short' })));
+
+  host.append(deviceCard());
+}
+
+/** el teu enllaç, per continuar amb el mateix compte en un altre navegador */
+function deviceCard() {
+  const card = el('section', 'card card--wide');
+  card.append(el('h3', null, 'Jugar en un altre navegador'));
+  card.append(el('p', 'hint',
+    'Obre aquest enllaç al mòbil, a la feina o on vulguis i hi trobaràs els mateixos temps. ' +
+    'Val per a tants dispositius com vulguis, i tot el que facis en qualsevol d’ells acaba als altres.'));
+  const link = API.myLink();
+  const box = el('div', 'invitelink');
+  const code = el('code', null, link);
+  const copy = el('button', 'btn btn--ghost', 'Copia l’enllaç');
+  copy.type = 'button';
+  copy.onclick = () => navigator.clipboard.writeText(link)
+    .then(() => toast('Enllaç copiat.'), () => toast('Selecciona’l i copia’l a mà.'));
+  box.append(code, copy);
+  card.append(box);
+  card.append(el('p', 'hint', 'És la teva clau: qui el tingui juga com si fos tu. No el publiquis enlloc.'));
+  return card;
 }
 
 /* ---------------- invitacions ---------------- */
@@ -1121,6 +1188,7 @@ function finishSession() {
   sessionLog.unshift(done);
   sessionLog = sessionLog.slice(0, 50);
   saveLog();
+  if (playing()) syncNow();
   showSummary(done);
 }
 
@@ -1240,7 +1308,7 @@ function openBoard(push = true) {
   show('board');
   if (push && location.hash !== '#classificacio') location.hash = '#classificacio';
   window.scrollTo(0, 0);
-  syncNow();
+  syncNow({ full: true });
 }
 
 function openAdmin(push = true) {
@@ -1269,9 +1337,11 @@ function askToJoin(token) {
       await API.join(token, name);
       dlg.close();
       paintWhoami();
-      toast(`Ja hi ets, ${name}. Pujant els teus temps…`);
-      await syncNow();
+      toast(`Ja hi ets, ${name}. Recuperant les teves dades…`);
+      await syncNow({ full: true });
       renderIndex();
+      const n = Object.keys(store).length;
+      toast(n ? `Llest: ${n} ${n === 1 ? 'repte' : 'reptes'} al teu compte.` : 'Llest.');
     } catch (err) {
       $('#joinerror').hidden = false;
       $('#joinerror').textContent = err.status === 401
@@ -1305,7 +1375,7 @@ function record(ms) {
   const inSession = !!session && sessionLevel() === current;
   const prevBest = best(current);
   const isBest = addRun(current, ms);
-  if (playing() && isBest) { API.queue(current); syncNow(); }
+  if (playing()) syncNow();
   if (inSession) return sessionAdvance({ n: current, t: ms, prevBest });
   renderTimes();
   renderPresets();
@@ -1386,7 +1456,7 @@ function wire() {
   $('#toboard').onclick   = () => openBoard();
   $('#boardback').onclick = backToIndex;
   $('#adminback').onclick = backToIndex;
-  $('#boardsync').onclick = () => syncNow(true);
+  $('#boardsync').onclick = () => syncNow({ full: true, loud: true });
   $('#tostats').onclick   = () => openStats();
   $('#statsback').onclick = backToIndex;
   $('#back').onclick      = closeLevel;
@@ -1396,6 +1466,7 @@ function wire() {
   $('#fav').onclick = () => {
     fav(current) ? favs.delete(current) : favs.add(current);
     saveFavs(); paintFav();
+    if (playing()) { API.markFav(current, fav(current)); syncNow(); }
     toast(fav(current) ? `Repte ${current} als favorits.` : `Repte ${current} fora dels favorits.`);
   };
 
@@ -1474,7 +1545,9 @@ function wire() {
         sessionLog = sessionLog.slice(0, 50);
         saveLog();
       }
-      saveTimes(); saveFavs(); renderIndex();
+      saveTimes(); saveFavs();
+      if (playing()) { API.markEverything(); syncNow(); }
+      renderIndex();
       toast(`${added} ${added === 1 ? 'temps importat' : 'temps importats'}` +
             (favAdded ? ` i ${favAdded} ${favAdded === 1 ? 'favorit' : 'favorits'}.` : '.'));
     }).catch(() => toast('El fitxer no s’ha pogut llegir.'));
@@ -1571,7 +1644,7 @@ fetch('data/puzzles.json')
     route();
     registerSW();
     warmSolver();
-    if (playing()) syncNow();
+    if (playing()) syncNow({ full: true });
     if (session && current === null) {
       toast(`Tens una sessió a mitges: repte ${session.idx + 1} de ${session.ids.length}.`);
     }
