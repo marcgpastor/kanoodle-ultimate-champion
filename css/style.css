@@ -376,6 +376,55 @@ button.piece:hover span{color:var(--chalk)}
 .times__del:hover{color:var(--magenta)}
 .times__empty{color:var(--chalk-dim);font-size:.9rem}
 
+/* ---------- la colla ---------- */
+.masthead__links{display:flex;gap:16px;flex-wrap:wrap}
+.whoami{color:var(--chalk-dim);font-size:.82rem}
+.whoami b{color:var(--lime);font-weight:600}
+.whoami button{
+  background:none;border:0;padding:0 0 0 .5em;color:var(--chalk-dim);
+  cursor:pointer;font-size:.82rem;text-decoration:underline;text-underline-offset:3px
+}
+.whoami button:hover{color:var(--magenta)}
+
+.rivals__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.rivals__list li{
+  display:flex;align-items:center;gap:.7em;padding:.45em .1em;font-size:.9rem;
+  border-bottom:1px solid rgba(255,255,255,.05)
+}
+.rivals__list li:last-child{border-bottom:0}
+.rivals__pos{font:600 .78rem var(--mono);color:var(--chalk-dim);min-width:1.6em}
+.rivals__name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rivals__t{margin-left:auto;font:600 .98rem var(--mono);font-variant-numeric:tabular-nums}
+.rivals__list li.is-me .rivals__name{color:var(--cyan);font-weight:600}
+.rivals__list li.is-first .rivals__t{color:var(--lime)}
+.rivals__list li.is-none .rivals__t{color:#5A4F4A}
+
+.standings{width:100%;border-collapse:collapse;font-size:.94rem}
+.standings th{
+  text-align:left;font:600 .7rem var(--mono);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--chalk-dim);padding:0 .8em .8em 0;white-space:nowrap
+}
+.standings td{padding:.6em .8em .6em 0;border-top:1px solid rgba(255,255,255,.06)}
+.standings--rank td:first-child{width:1.6em;font:600 .85rem var(--mono);color:var(--chalk-dim)}
+.standings .num{font:600 1rem var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.standings th.num{font:600 .7rem var(--mono);letter-spacing:.14em}
+.standings tr.is-me td{color:var(--cyan)}
+.standings .crown{color:var(--lime)}
+
+.invite{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.2em}
+.invite input{
+  flex:1 1 12em;min-width:0;padding:.6em .9em;border-radius:10px;
+  border:1px solid var(--hole-rim);background:var(--hole);color:var(--chalk);font:400 .95rem var(--body)
+}
+.invitelink{
+  display:flex;gap:8px;align-items:center;background:var(--hole);border-radius:10px;
+  padding:.7em .9em;margin-bottom:1em;flex-wrap:wrap
+}
+.invitelink code{
+  flex:1 1 14em;min-width:0;font:500 .78rem var(--mono);color:var(--lime);
+  overflow-wrap:anywhere
+}
+
 /* ---------- estadístiques ---------- */
 .stats__title{font-size:clamp(1.9rem,5.5vw,2.9rem);margin:.2em 0 .8em}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;align-items:start}

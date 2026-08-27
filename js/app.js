@@ -28,6 +28,8 @@ let store = {};              // { "147": [{t, d}] }
 let favs  = new Set();
 let session = null;          // { ids, idx, results, startedAt }
 const solutions = {};        // repte -> solució del resolutor (o null)
+const API = root_api();
+function root_api() { return typeof KanoodleAPI !== 'undefined' ? KanoodleAPI : null; }
 let shownHints = new Set();  // lletres de les peces revelades ara mateix
 let sessionLog = [];         // sessions acabades
 let prefs = { mode: 'up', target: 180000, sound: true, autoTarget: true };
@@ -345,6 +347,7 @@ function openLevel(n, push = true) {
   applyTarget();
   paintSession();
   paintHints();
+  paintRivals();
   show('level');
   if (push && location.hash !== '#' + n) location.hash = '#' + n;
   window.scrollTo(0, 0);
@@ -730,6 +733,250 @@ function toplist(items) {
   return ol;
 }
 
+/* ---------------- la colla ---------------- */
+
+const compEnabled = () => !!API && API.enabled();
+const playing = () => compEnabled() && API.me();
+
+/** la classificació baixada, indexada per repte i per jugador */
+function boardIndex() {
+  const b = compEnabled() ? API.board() : null;
+  if (!b) return null;
+  const names = new Map(b.players);
+  const byPuzzle = new Map();
+  const byPlayer = new Map();
+  for (const [pz, pid, ms] of b.times) {
+    if (!byPuzzle.has(pz)) byPuzzle.set(pz, []);
+    byPuzzle.get(pz).push([pid, ms]);
+    if (!byPlayer.has(pid)) byPlayer.set(pid, []);
+    byPlayer.get(pid).push(ms);
+  }
+  for (const list of byPuzzle.values()) list.sort((a, b2) => a[1] - b2[1]);
+  return { names, byPuzzle, byPlayer, at: b.at };
+}
+
+let syncing = false;
+async function syncNow(loud) {
+  if (!playing() || syncing) return;
+  syncing = true;
+  try {
+    await API.sync(p => best(p));
+    paintWhoami();
+    if (current !== null) paintRivals();
+    if (!$('#view-board').hidden) renderBoard();
+    if (loud) toast('Classificació al dia.');
+  } catch (e) {
+    if (loud) toast(e.status === 401 ? 'La teva invitació ja no val.' : 'No he pogut connectar amb el servidor.');
+  } finally {
+    syncing = false;
+  }
+}
+
+function paintWhoami() {
+  const box = $('#whoami');
+  const p = playing();
+  $('#toboard').hidden = !p;
+  $('#adminlink').hidden = !compEnabled();
+  if (!compEnabled()) { box.hidden = true; return; }
+  box.hidden = false;
+  box.textContent = '';
+  if (!p) {
+    box.append(document.createTextNode('Tens una invitació? Obre l’enllaç que t’han passat.'));
+    return;
+  }
+  box.append(document.createTextNode('Jugues com a '), el('b', null, p.name));
+  const out = el('button', null, 'Surt');
+  out.type = 'button';
+  out.onclick = () => {
+    if (!confirm('Vols sortir de la classificació? Els teus temps es queden en aquest navegador.')) return;
+    API.logout(); paintWhoami(); renderIndex();
+  };
+  box.append(out);
+}
+
+/** el panell de rivals dins d'un repte */
+function paintRivals() {
+  const box = $('#rivals');
+  const idx = boardIndex();
+  const p = playing();
+  if (!p || !idx) { box.hidden = true; return; }
+  box.hidden = false;
+  const list = $('#rivals-list');
+  list.textContent = '';
+  const rows = idx.byPuzzle.get(current) || [];
+  const done = new Map(rows);
+  let pos = 0, prev = null;
+  for (const [pid, ms] of rows) {
+    if (ms !== prev) pos++;
+    prev = ms;
+    const li = el('li', (pid === p.id ? ' is-me' : '') + (pos === 1 ? ' is-first' : ''));
+    li.append(el('span', 'rivals__pos', String(pos)),
+              el('span', 'rivals__name', idx.names.get(pid) || '?'),
+              el('span', 'rivals__t', fmt(ms)));
+    list.append(li);
+  }
+  for (const [pid, name] of idx.names) {
+    if (done.has(pid)) continue;
+    const li = el('li', 'is-none' + (pid === p.id ? ' is-me' : ''));
+    li.append(el('span', 'rivals__pos', '·'), el('span', 'rivals__name', name), el('span', 'rivals__t', '—'));
+    list.append(li);
+  }
+}
+
+/** la taula general */
+function renderBoard() {
+  const host = $('#boardbody');
+  host.textContent = '';
+  const idx = boardIndex();
+  const p = playing();
+  if (!p) { host.append(el('p', 'empty', 'Encara no hi ets. Obre l’enllaç d’invitació que t’han passat.')); return; }
+  if (!idx || !idx.names.size) {
+    host.append(el('p', 'empty', 'Encara no hi ha res. Toca «Actualitza» quan tinguis connexió.'));
+    return;
+  }
+
+  const wins = new Map();
+  for (const rows of idx.byPuzzle.values()) {
+    if (!rows.length) continue;
+    const top = rows[0][1];
+    for (const [pid, ms] of rows) { if (ms === top) wins.set(pid, (wins.get(pid) || 0) + 1); else break; }
+  }
+
+  const rows = [...idx.names].map(([id, name]) => {
+    const times = idx.byPlayer.get(id) || [];
+    const total = times.reduce((a, b) => a + b, 0);
+    return { id, name, count: times.length, wins: wins.get(id) || 0, avg: times.length ? total / times.length : null };
+  }).sort((a, b) => b.wins - a.wins || b.count - a.count || (a.avg ?? 9e9) - (b.avg ?? 9e9));
+
+  const card = el('section', 'card card--wide');
+  const table = el('table', 'standings standings--rank');
+  const head = el('tr');
+  ['', 'Jugador', 'Reptes', 'Millors', 'Mitjana'].forEach((h, i) =>
+    head.append(el('th', i >= 2 ? 'num' : null, h)));
+  const thead = el('thead'); thead.append(head); table.append(thead);
+  const body = el('tbody');
+  rows.forEach((r, i) => {
+    const tr = el('tr', r.id === p.id ? 'is-me' : '');
+    tr.append(el('td', null, String(i + 1)));
+    const nameCell = el('td', null, r.name);
+    if (i === 0 && r.wins) nameCell.append(el('span', 'crown', ' ★'));
+    tr.append(nameCell);
+    tr.append(el('td', 'num', String(r.count)));
+    tr.append(el('td', 'num', String(r.wins)));
+    tr.append(el('td', 'num', r.avg ? fmt(r.avg, false) : '—'));
+    body.append(tr);
+  });
+  table.append(body);
+  card.append(el('h3', null, 'Classificació general'), table,
+    el('p', 'hint', '«Millors» és a quants reptes tens el temps més ràpid de la colla.'));
+  host.append(card);
+
+  if (idx.at) host.append(el('p', 'hint', 'Última actualització: ' +
+    new Date(idx.at).toLocaleString('ca-ES', { dateStyle: 'medium', timeStyle: 'short' })));
+}
+
+/* ---------------- invitacions ---------------- */
+
+function renderAdmin() {
+  const host = $('#adminbody');
+  host.textContent = '';
+  if (!compEnabled()) { host.append(el('p', 'empty', 'Encara no hi ha cap servidor configurat.')); return; }
+
+  const card = el('section', 'card card--wide');
+  card.append(el('h3', null, 'Clau d’administració'));
+  const keyRow = el('div', 'invite');
+  const keyInput = el('input');
+  keyInput.type = 'password';
+  keyInput.placeholder = 'La clau que vas posar al Worker';
+  keyInput.value = API.adminKey();
+  const keyBtn = el('button', 'btn btn--solid', 'Desa la clau');
+  keyBtn.type = 'button';
+  keyBtn.onclick = () => { API.setAdminKey(keyInput.value.trim()); renderAdmin(); };
+  keyRow.append(keyInput, keyBtn);
+  card.append(keyRow);
+  host.append(card);
+
+  if (!API.adminKey()) return;
+
+  const inv = el('section', 'card card--wide');
+  inv.append(el('h3', null, 'Convida algú'));
+  const row = el('div', 'invite');
+  const nameInput = el('input');
+  nameInput.type = 'text';
+  nameInput.maxLength = 24;
+  nameInput.placeholder = 'Nom de qui convides';
+  const go = el('button', 'btn btn--accent', 'Crea la invitació');
+  go.type = 'button';
+  go.onclick = async () => {
+    go.disabled = true;
+    try {
+      const res = await API.invite(nameInput.value.trim());
+      const link = location.origin + location.pathname + '#entra=' + res.token;
+      const box = el('div', 'invitelink');
+      const code = el('code', null, link);
+      const copy = el('button', 'btn btn--ghost', 'Copia');
+      copy.type = 'button';
+      copy.onclick = () => navigator.clipboard.writeText(link)
+        .then(() => toast('Enllaç copiat.'), () => toast('Copia’l a mà.'));
+      box.append(code, copy);
+      inv.insertBefore(box, row.nextSibling);
+      nameInput.value = '';
+      toast(`Invitació per a ${res.name} creada. L’enllaç només es veu ara.`);
+      listPlayers();
+    } catch (e) { toast(e.message); }
+    go.disabled = false;
+  };
+  row.append(nameInput, go);
+  inv.append(row, el('p', 'hint', 'L’enllaç conté el testimoni i no es pot tornar a veure: copia’l ara i passa’l.'));
+  host.append(inv);
+
+  const listCard = el('section', 'card card--wide');
+  listCard.append(el('h3', null, 'Qui hi ha'));
+  const listBox = el('div');
+  listCard.append(listBox);
+  host.append(listCard);
+
+  async function listPlayers() {
+    listBox.textContent = 'Carregant…';
+    try {
+      const { players } = await API.players();
+      listBox.textContent = '';
+      if (!players.length) { listBox.append(el('p', 'empty', 'Encara no has convidat ningú.')); return; }
+      const table = el('table', 'standings');
+      const head = el('tr');
+      ['Nom', 'Estat', 'Temps', ''].forEach((h, i) => head.append(el('th', i === 2 ? 'num' : null, h)));
+      const thead = el('thead'); thead.append(head); table.append(thead);
+      const body = el('tbody');
+      for (const pl of players) {
+        const tr = el('tr');
+        tr.append(el('td', null, pl.name));
+        tr.append(el('td', null, pl.revoked ? 'revocat' : pl.joined_at ? 'actiu' : 'pendent d’entrar'));
+        tr.append(el('td', 'num', String(pl.times)));
+        const actions = el('td');
+        const toggle = el('button', 'link', pl.revoked ? 'Torna a activar' : 'Revoca');
+        toggle.type = 'button';
+        toggle.onclick = async () => { await API.revoke(pl.id, !pl.revoked); listPlayers(); };
+        const del = el('button', 'link link--danger', 'Esborra');
+        del.type = 'button';
+        del.style.marginLeft = '12px';
+        del.onclick = async () => {
+          if (!confirm(`Esborrar ${pl.name} i tots els seus temps?`)) return;
+          await API.remove(pl.id); listPlayers();
+        };
+        actions.append(toggle, del);
+        tr.append(actions);
+        body.append(tr);
+      }
+      table.append(body);
+      listBox.append(table);
+    } catch (e) {
+      listBox.textContent = '';
+      listBox.append(el('p', 'empty', e.message));
+    }
+  }
+  listPlayers();
+}
+
 /* ---------------- pistes ---------------- */
 
 let worker, seq = 0;
@@ -968,6 +1215,8 @@ function show(which) {
   $('#view-level').hidden   = which !== 'level';
   $('#view-stats').hidden   = which !== 'stats';
   $('#view-session').hidden = which !== 'session';
+  $('#view-board').hidden   = which !== 'board';
+  $('#view-admin').hidden   = which !== 'admin';
 }
 
 function backToIndex() {
@@ -982,6 +1231,54 @@ function backToIndex() {
 function closeLevel() {
   stopTimer();
   backToIndex();
+}
+
+function openBoard(push = true) {
+  if (current !== null) { stopTimer(); current = null; }
+  document.title = 'La colla — Kanoodle Ultimate Champion';
+  renderBoard();
+  show('board');
+  if (push && location.hash !== '#classificacio') location.hash = '#classificacio';
+  window.scrollTo(0, 0);
+  syncNow();
+}
+
+function openAdmin(push = true) {
+  if (current !== null) { stopTimer(); current = null; }
+  document.title = 'Invitacions — Kanoodle Ultimate Champion';
+  renderAdmin();
+  show('admin');
+  if (push && location.hash !== '#invitacions') location.hash = '#invitacions';
+  window.scrollTo(0, 0);
+}
+
+/** l'enllaç d'invitació: demanem el nom i entrem */
+function askToJoin(token) {
+  history.replaceState(null, '', location.pathname + location.search);
+  if (!compEnabled()) { backToIndex(); return toast('Aquesta còpia no té servidor configurat.'); }
+  const dlg = $('#joindlg');
+  $('#joinerror').hidden = true;
+  $('#joinname').value = (playing() || {}).name || '';
+  backToIndex();
+  dlg.showModal();
+  $('#joinform').onsubmit = async e => {
+    e.preventDefault();
+    const name = $('#joinname').value.trim();
+    if (!name) return;
+    try {
+      await API.join(token, name);
+      dlg.close();
+      paintWhoami();
+      toast(`Ja hi ets, ${name}. Pujant els teus temps…`);
+      await syncNow();
+      renderIndex();
+    } catch (err) {
+      $('#joinerror').hidden = false;
+      $('#joinerror').textContent = err.status === 401
+        ? 'Aquesta invitació no val: potser ja s’ha revocat.'
+        : 'No he pogut connectar amb el servidor.';
+    }
+  };
 }
 
 function openStats(push = true) {
@@ -1008,6 +1305,7 @@ function record(ms) {
   const inSession = !!session && sessionLevel() === current;
   const prevBest = best(current);
   const isBest = addRun(current, ms);
+  if (playing() && isBest) { API.queue(current); syncNow(); }
   if (inSession) return sessionAdvance({ n: current, t: ms, prevBest });
   renderTimes();
   renderPresets();
@@ -1085,6 +1383,10 @@ function wire() {
   $('#sessionback').onclick = backToIndex;
   $('#sessionagain').onclick = () => { backToIndex(); $('#startsession').click(); };
 
+  $('#toboard').onclick   = () => openBoard();
+  $('#boardback').onclick = backToIndex;
+  $('#adminback').onclick = backToIndex;
+  $('#boardsync').onclick = () => syncNow(true);
   $('#tostats').onclick   = () => openStats();
   $('#statsback').onclick = backToIndex;
   $('#back').onclick      = closeLevel;
@@ -1181,6 +1483,7 @@ function wire() {
   $('#wipe').onclick = () => {
     if (!confirm('Segur que vols esborrar tots els temps, els favorits i les sessions? No es pot desfer.')) return;
     store = {}; favs = new Set(); session = null; sessionLog = [];
+    if (compEnabled()) API.logout();
     saveTimes(); saveFavs(); saveSession(); saveLog(); renderIndex();
     toast('Tot esborrat.');
   };
@@ -1206,6 +1509,9 @@ function wire() {
 
 function route() {
   const h = location.hash.slice(1);
+  if (h.startsWith('entra=')) return askToJoin(h.slice(6));
+  if (h === 'classificacio') return openBoard(false);
+  if (h === 'invitacions') return openAdmin(false);
   if (h === 'stats') return openStats(false);
   if (h === 'sessio') {
     if (sessionLog.length) return showSummary(sessionLog[0], false);
@@ -1261,9 +1567,11 @@ fetch('data/puzzles.json')
     $('#sound').textContent = prefs.sound ? '🔊 So activat' : '🔇 So desactivat';
     renderPresets();
     setMode(prefs.mode);
+    paintWhoami();
     route();
     registerSW();
     warmSolver();
+    if (playing()) syncNow();
     if (session && current === null) {
       toast(`Tens una sessió a mitges: repte ${session.idx + 1} de ${session.ids.length}.`);
     }

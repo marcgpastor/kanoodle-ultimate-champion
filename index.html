@@ -31,7 +31,11 @@
     </div>
     <div class="masthead__meta">
       <dl class="scoreboard" id="scoreboard"></dl>
-      <button type="button" id="tostats" class="link">Mira les estadístiques &rarr;</button>
+      <div class="masthead__links">
+        <button type="button" id="tostats" class="link">Mira les estadístiques &rarr;</button>
+        <button type="button" id="toboard" class="link" hidden>Classificació &rarr;</button>
+      </div>
+      <p class="whoami" id="whoami" hidden></p>
     </div>
   </header>
 
@@ -70,6 +74,19 @@
 
   <main id="main" class="pegboard" aria-label="Índex de reptes"></main>
 
+  <dialog id="joindlg" class="dlg" aria-labelledby="jointitle">
+    <div class="dlg__body">
+      <h2 id="jointitle">Tens una invitació</h2>
+      <p class="dlg__lede">Amb quin nom vols sortir a la classificació? El veuran els altres.</p>
+      <form id="joinform" class="manual__row">
+        <label class="sr-only" for="joinname">Nom</label>
+        <input id="joinname" type="text" maxlength="24" placeholder="El teu nom" autocomplete="nickname">
+        <button type="submit" class="btn btn--accent">Entra</button>
+      </form>
+      <p class="dlg__pool" id="joinerror" hidden></p>
+    </div>
+  </dialog>
+
   <dialog id="sessiondlg" class="dlg" aria-labelledby="dlgtitle">
     <div class="dlg__body">
       <h2 id="dlgtitle">Mode sessió</h2>
@@ -94,6 +111,7 @@
       <button type="button" id="export" class="link">Exporta-ho tot</button>
       <button type="button" id="import" class="link">Importa-ho</button>
       <button type="button" id="wipe" class="link link--danger">Esborra-ho tot</button>
+      <a class="link" href="#invitacions" id="adminlink" hidden>Invitacions</a>
     </p>
     <input type="file" id="importfile" accept="application/json" hidden>
   </footer>
@@ -185,6 +203,11 @@
         </form>
       </section>
 
+      <section class="rivals" id="rivals" hidden>
+        <h3>Com va la colla en aquest repte</h3>
+        <ol class="rivals__list" id="rivals-list"></ol>
+      </section>
+
       <section class="times">
         <h3>Els teus temps</h3>
         <div id="lv-spark"></div>
@@ -204,6 +227,25 @@
   <div id="summary"></div>
 </div>
 
+<!-- ============ CLASSIFICACIÓ ============ -->
+<div id="view-board" class="view" hidden>
+  <div class="levelbar">
+    <button type="button" id="boardback" class="btn btn--ghost">&larr;&nbsp;Índex</button>
+    <button type="button" id="boardsync" class="btn btn--ghost">Actualitza</button>
+  </div>
+  <h2 class="stats__title">La colla</h2>
+  <div id="boardbody"></div>
+</div>
+
+<!-- ============ INVITACIONS ============ -->
+<div id="view-admin" class="view" hidden>
+  <div class="levelbar">
+    <button type="button" id="adminback" class="btn btn--ghost">&larr;&nbsp;Índex</button>
+  </div>
+  <h2 class="stats__title">Invitacions</h2>
+  <div id="adminbody"></div>
+</div>
+
 <!-- ============ ESTADÍSTIQUES ============ -->
 <div id="view-stats" class="view" hidden>
   <div class="levelbar">
@@ -215,6 +257,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<script src="js/api.js"></script>
 <script src="js/solver.js"></script>
 <script src="js/app.js"></script>
 </body>

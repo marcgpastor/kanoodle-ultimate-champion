@@ -39,7 +39,8 @@ integrat i guarda els teus temps al navegador.
   que la pàgina no fa cap petició a fora.
 
 Els temps, els favorits, les sessions i les preferències del rellotge es desen
-a `localStorage`: només viuen en aquest navegador i no s'envien enlloc.
+a `localStorage`. Si no configures la classificació (mireu més avall), no
+s'envia res enlloc i la web no fa cap petició fora del seu propi domini.
 
 ## Tecles
 
@@ -52,7 +53,8 @@ a `localStorage`: només viuen en aquest navegador i no s'envien enlloc.
 | `Esc` | Torna a l'índex |
 
 Les vistes tenen adreça pròpia: `#147` obre el repte 147, `#stats` les
-estadístiques i `#sessio` el resum de l'última sessió.
+estadístiques, `#sessio` el resum de l'última sessió, `#classificacio` la de la
+colla i `#invitacions` el panell per convidar gent.
 
 ## Fer-la anar en local
 
@@ -63,13 +65,47 @@ python3 -m http.server 8123
 I obre <http://localhost:8123>. Cal servidor: la pàgina carrega `data/puzzles.json`
 per `fetch`, i amb `file://` el navegador ho bloqueja.
 
+## Competir amb els amics
+
+Opcional i apagat per defecte. Mentre `BASE` estigui buit a dalt de
+`js/api.js`, tot això queda amagat i la web es comporta exactament com si no
+existís.
+
+Si l'engegues, hi ha una classificació compartida: cada jugador puja el seu
+millor temps de cada repte i veu com va la colla, tant a la vista general com
+al costat de cada repte.
+
+**S'hi entra només amb invitació.** No hi ha cap formulari de registre: tu
+crees una invitació des de `#invitacions` (que et demana la clau
+d'administració), et dona un enllaç amb un testimoni i el passes a qui vulguis.
+Qui l'obre tria el nom amb què sortirà i queda registrat. Pots revocar o
+esborrar qualsevol jugador quan vulguis. Ningú que no tingui un enllaç pot
+entrar ni veure res.
+
+El servidor és un Cloudflare Worker amb una base D1; les instruccions per
+posar-lo en marxa són a [`api/README.md`](api/README.md).
+
+Un avís honest: **no hi ha manera de comprovar que un temps sigui real**.
+Qualsevol pot escriure'l a mà. Entre amics és qüestió de confiança.
+
+Tot continua funcionant sense connexió: els temps es desen igualment al
+navegador i es pugen sols quan torna la xarxa.
+
 ## Fora de línia
 
 Un service worker (`sw.js`) guarda a la memòria cau la pàgina, els estils, les
-tipografies i `data/puzzles.json`. **Quan canviïs qualsevol d'aquests fitxers,
-puja el número de `VERSION` a `sw.js`**; si no, els navegadors que ja hi han
-entrat continuaran servint la versió antiga. Quan detecta que n'hi ha una de
-nova, la pàgina t'avisa perquè recarreguis.
+tipografies i `data/puzzles.json`. Quan canviïs qualsevol d'aquests fitxers cal
+canviar la `VERSION` de `sw.js`; si no, els navegadors que ja hi han entrat
+continuaran servint la versió antiga. Perquè no se t'oblidi, abans de cada
+commit:
+
+```bash
+node tools/stamp-sw.js
+```
+
+Calcula un resum del contingut dels fitxers guardats i el posa com a versió. Si
+no ha canviat res, no toca res. Quan la pàgina detecta que n'hi ha una de nova,
+t'avisa perquè recarreguis.
 
 Mentre desenvolupes en local, val la pena tenir obertes les eines del navegador
 amb *Disable cache*, o esborrar el service worker des de la pestanya
@@ -145,6 +181,8 @@ css/fonts.css       declaracions @font-face
 js/app.js           tota la lògica de la interfície
 js/solver.js        resolutor de cobertura exacta (2D i 3D)
 js/worker.js        el resolutor en un fil a part
+js/api.js           client de la classificació (apagat si BASE és buit)
+api/                Cloudflare Worker + D1: usuaris i temps compartits
 data/puzzles.json   els 500 reptes, formes de les peces i geometria del 3D
 fonts/              woff2 (SIL Open Font License 1.1, vegeu fonts/README.md)
 icons/              icones de la instal·lació al mòbil

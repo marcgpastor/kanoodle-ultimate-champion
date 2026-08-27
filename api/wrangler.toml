@@ -1,0 +1,12 @@
+name = "kanoodle-api"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kanoodle"
+database_id = "POSA-HI-L-ID-QUE-ET-DONI-WRANGLER"
+
+[vars]
+# D'on s'accepten peticions. Afegeix-hi el teu domini si en canvies.
+ALLOWED_ORIGINS = "https://marcgpastor.github.io,http://localhost:8123"
