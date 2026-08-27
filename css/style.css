@@ -242,9 +242,10 @@ button{font:inherit;color:inherit}
   width:2.1em;height:2.1em;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;
   display:grid;place-items:center;transition:color .15s,border-color .15s,transform .1s
 }
-.fav:hover{color:var(--magenta);border-color:var(--magenta)}
+.fav:hover{color:var(--chalk);border-color:#5A4F4A}
 .fav:active{transform:scale(.92)}
-.fav[aria-pressed="true"]{color:var(--magenta);border-color:var(--magenta);background:rgba(240,59,166,.12)}
+.fav[aria-pressed="true"]{color:#2B0016;border-color:var(--magenta);background:var(--magenta)}
+.fav[aria-pressed="true"]:hover{color:#2B0016;border-color:#F55FBA;background:#F55FBA}
 .level__kind{
   font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.18em;
   color:var(--ink);background:var(--cyan);padding:.35em .75em;border-radius:999px
@@ -350,8 +351,9 @@ button{font:inherit;color:inherit}
 button.piece{border:0;background:none;cursor:pointer;padding:0;border-radius:10px;transition:transform .12s}
 button.piece:hover{transform:translateY(-3px)}
 button.piece:hover span{color:var(--chalk)}
-.piece.is-shown{opacity:.4}
-.piece.is-shown span{color:var(--cyan)}
+.piece.is-shown{opacity:.45}
+.piece.is-shown span,
+button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 
 .hintbar{
   display:flex;flex-wrap:wrap;align-items:center;gap:8px;

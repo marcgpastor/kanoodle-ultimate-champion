@@ -334,7 +334,7 @@ function openLevel(n, push = true) {
     p.dataset.piece = L;
     p.title = `Ensenya’m on va la peça ${L}`;
     p.append(drawPiece(L), el('span', null, L));
-    p.onclick = () => reveal([L]);
+    p.onclick = () => toggleHint(L);
     pieces.append(p);
   }
   $('#hintbar').hidden = !todo.length;
@@ -757,11 +757,13 @@ function boardIndex() {
   return { names, byPuzzle, byPlayer, at: b.at };
 }
 
-let syncing = false;
+let syncing = false, syncQueued = null;
 
 /** puja el que hi hagi de nou i, si cal, torna a baixar tot el teu historial */
-async function syncNow({ full = false, loud = false } = {}) {
-  if (!playing() || syncing) return;
+async function syncNow(opts = {}) {
+  const { full = false, loud = false } = opts;
+  if (!playing()) return;
+  if (syncing) { syncQueued = opts; return; }   // no la perdem: va tot seguit
   syncing = true;
   try {
     const res = await API.sync({ store, favs: [...favs], sessions: sessionLog }, full);
@@ -774,6 +776,7 @@ async function syncNow({ full = false, loud = false } = {}) {
     if (loud) toast(e.status === 401 ? 'La teva invitació ja no val.' : 'No he pogut connectar amb el servidor.');
   } finally {
     syncing = false;
+    if (syncQueued) { const next = syncQueued; syncQueued = null; syncNow(next); }
   }
 }
 
@@ -813,7 +816,10 @@ function applyRemote(res) {
     }
   }
 
-  if (changed && $('#view-index').hidden === false) renderIndex();
+  if (changed) {
+    if (current !== null) paintFav();
+    if (!$('#view-index').hidden) renderIndex();
+  }
   return changed;
 }
 
@@ -1127,7 +1133,11 @@ function paintHints() {
     : shown === 0 ? 'Toca una peça i et diré on va.'
     : shown >= total ? 'Aquesta és una solució sencera.' + brokenNote(sol)
     : `${shown} ${shown === 1 ? 'peça' : 'peces'} de ${total}.` + brokenNote(sol);
-  $$('#lv-pieces .piece').forEach(p => p.classList.toggle('is-shown', shownHints.has(p.dataset.piece)));
+  $$('#lv-pieces .piece').forEach(p => {
+    const on = shownHints.has(p.dataset.piece);
+    p.classList.toggle('is-shown', on);
+    p.title = on ? `Amaga la peça ${p.dataset.piece}` : `Ensenya’m on va la peça ${p.dataset.piece}`;
+  });
   paintDiagram();
 }
 
@@ -1140,6 +1150,16 @@ function reveal(letters) {
   withSolution(current, sol => {
     if (!sol) return paintHints();
     for (const L of letters) if (sol.pieces.some(p => p.piece === L)) shownHints.add(L);
+    paintHints();
+  });
+}
+
+/** tocar una peça la mostra; tornar-la a tocar l'amaga */
+function toggleHint(L) {
+  withSolution(current, sol => {
+    if (!sol) return paintHints();
+    if (shownHints.has(L)) shownHints.delete(L);
+    else if (sol.pieces.some(p => p.piece === L)) shownHints.add(L);
     paintHints();
   });
 }
