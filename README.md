@@ -1,13 +1,14 @@
-# Kanoodle Ultimate Champion — els 500 reptes
+# Kanoodle Ultimate Champion — 700 reptes
 
 Web estàtica per jugar al **Kanoodle Ultimate Champion** sense haver de passar
-fulls del quadern: mostra els 500 reptes (250 en 2D i 250 en 3D), té cronòmetre
-integrat i guarda els teus temps al navegador.
+fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
+200 més de generats, té cronòmetre integrat i guarda els teus temps.
 
 ## Què fa
 
-- **Índex de 500 reptes** com un tauler de boletes. Quan en resols un, la boleta
-  s'omple de color i mostra el teu millor temps.
+- **Índex de 700 reptes** com un tauler de boletes, en quatre tandes: les dues
+  del quadern i les dues de generades, ben marcades. Quan en resols un, la
+  boleta s'omple de color i mostra el teu millor temps.
 - **Filtres** per 2D, 3D, pendents o fets, salt directe per número i botó
   *Repte a l'atzar*.
 - **Diagrama de muntatge** dibuixat en SVG a partir del quadern original. Els
@@ -150,6 +151,32 @@ Els 500 reptes passen la comprovació amb una excepció coneguda:
   com surt i ho avisa. El resolutor sap detectar-ho: torna la D a la reserva i
   troba on anava de debò, tot mantenint la boleta que sí que surt impresa.
 
+## Els 200 reptes nous
+
+Les tandes 501–600 (2D) i 601–700 (3D) no surten del quadern: les fabrica
+`tools/generate.js` amb el mateix resolutor. Es busca un encaix sencer de les 12
+peces, se'n deixen unes quantes al tauler i s'amaga la resta, que és exactament
+el que fa el quadern.
+
+Dues diferències a favor:
+
+- **Tenen una única solució.** Dels 500 del quadern, només 197 dels 250 en 2D i
+  152 dels 249 en 3D en tenen una de sola; els altres n'admeten més d'una. Els
+  generats la tenen sempre, comprovada un a un.
+- **Van de fàcil a difícil.** Dins de cada tanda estan ordenats per peces a
+  col·locar, de 2 a 10, amb una corba pensada perquè n'hi hagi de tots els
+  gustos. El quadern es concentra a 4–6 peces i no segueix cap ordre.
+
+La part cara és trobar l'encaix (14 ms en 2D, 0,7 s en 3D); un cop trobat, cada
+repte que se'n deriva costa menys de 2 ms, així que d'un sol encaix en surten
+desenes. Les 200 es fabriquen en 14 segons.
+
+És determinista: amb la mateixa llavor surten sempre els mateixos reptes.
+
+```bash
+node tools/generate.js --seed 20260827 --count 100
+```
+
 ## El resolutor
 
 `js/solver.js` resol qualsevol dels 500 reptes com un problema de cobertura
@@ -177,9 +204,10 @@ gairebé cap dels 250 reptes 3D no tindria solució.
 cd tools && node solve-all.js
 ```
 
-comprova els 500 i verifica cada solució de manera independent: que cap peça se
+comprova els 700 i verifica cada solució de manera independent: que cap peça se
 solapi, que es cobreixin els 55 forats i que cada peça col·locada sigui una
-posició legal de la seva forma.
+posició legal de la seva forma. Als generats hi comprova, a més, que la solució
+sigui única.
 
 ## Estructura
 
@@ -192,7 +220,8 @@ js/solver.js        resolutor de cobertura exacta (2D i 3D)
 js/worker.js        el resolutor en un fil a part
 js/api.js           client de la classificació (apagat si BASE és buit)
 api/                Cloudflare Worker + D1: usuaris i temps compartits
-data/puzzles.json   els 500 reptes, formes de les peces i geometria del 3D
+data/puzzles.json   els 700 reptes, formes de les peces i geometria del 3D
+tools/generate.js   fabrica les dues tandes de reptes nous
 fonts/              woff2 (SIL Open Font License 1.1, vegeu fonts/README.md)
 icons/              icones de la instal·lació al mòbil
 manifest.json       metadades de la instal·lació

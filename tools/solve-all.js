@@ -12,11 +12,17 @@ for (const dim of [2, 3])
     legal[dim].add(r.piece + '|' + r.cells.slice().sort((a, b) => a - b).join(','));
 
 const problems = [];
-let total = 0, worst = 0, worstN = 0, maxNodes = 0;
+let total = 0, worst = 0, worstN = 0, maxNodes = 0, unics = 0, generats = 0;
 
-for (let n = 1; n <= 500; n++) {
-  const dim = n >= 251 ? 3 : 2;
+const sets = D.sets || [{ from: 1, to: 250, dim: 2, origin: 'book' }, { from: 251, to: 500, dim: 3, origin: 'book' }];
+const last = Math.max(...sets.map(s => s.to));
+const setOf = n => sets.find(s => n >= s.from && n <= s.to);
+
+for (let n = 1; n <= last; n++) {
+  const set = setOf(n);
+  const dim = set.dim;
   const grid = dim === 3 ? D.p3d[n] : D.p2d[n];
+  if (!grid) { problems.push(`${n}: no hi ha diagrama`); continue; }
   const flat = dim === 3 ? grid.flat().join('') : grid.join('');
 
   const t0 = process.hrtime.bigint();
@@ -27,6 +33,13 @@ for (let n = 1; n <= 500; n++) {
 
   if (!r.ok) { problems.push(`${n}: sense solució (${r.reason})`); continue; }
   if (r.nodes > maxNodes) maxNodes = r.nodes;
+
+  // els generats han de tenir una única solució; els del quadern, no sempre
+  if (set.origin === 'gen') {
+    generats++;
+    const c = S.countSolutions(grid, dim, D.shapes, D.sizes, 2);
+    if (c === 1) unics++; else problems.push(`${n}: generat amb ${c > 1 ? 'més d\'una' : 'cap'} solució`);
+  }
 
   const seen = new Set();
   for (let i = 0; i < 55; i++)
@@ -48,7 +61,8 @@ for (let n = 1; n <= 500; n++) {
     if (!used.has(L) && (flat.indexOf(L) < 0 || r.broken.includes(L))) problems.push(`${n}: falta la peça ${L}`);
 }
 
-console.log(`500 reptes · mitjana ${(total / 500).toFixed(2)} ms · pitjor ${worst.toFixed(0)} ms (repte ${worstN}) · nodes màx ${maxNodes}`);
+console.log(`${last} reptes · mitjana ${(total / last).toFixed(2)} ms · pitjor ${worst.toFixed(0)} ms (repte ${worstN}) · nodes màx ${maxNodes}`);
+if (generats) console.log(`generats amb solució única: ${unics}/${generats}`);
 if (problems.length) {
   console.log(`\n${problems.length} problemes:`);
   for (const p of problems.slice(0, 20)) console.log('  ' + p);

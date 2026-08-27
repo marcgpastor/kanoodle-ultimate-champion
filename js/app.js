@@ -183,7 +183,10 @@ function drawPiece(letter) {
 
 /* ---------------- dades d'un repte ---------------- */
 
-const is3D    = n => n >= 251;
+let SETS = [], LAST = 500;
+const setOf = n => SETS.find(s => n >= s.from && n <= s.to) || SETS[0];
+const is3D    = n => setOf(n).dim === 3;
+const isNew   = n => setOf(n).origin === 'gen';
 const layout  = n => is3D(n) ? DATA.p3d[n] : DATA.p2d[n];
 const letters = n => {
   const flat = is3D(n) ? layout(n).flat().join('') : layout(n).join('');
@@ -193,7 +196,7 @@ const letters = n => {
 const DIFF_BANDS = { easy: [1, 4], mid: [5, 6], hard: [7, 12] };
 
 function computeDifficulty() {
-  for (let n = 1; n <= 500; n++) DIFF[n] = 12 - letters(n).size;
+  for (let n = 1; n <= LAST; n++) DIFF[n] = 12 - letters(n).size;
 }
 
 /** anell de la boleta: com més clar, més peces has de col·locar */
@@ -214,23 +217,27 @@ function passes(n) {
   if (filter === 'done') return done(n);
   if (filter === 'todo') return !done(n);
   if (filter === 'fav')  return fav(n);
+  if (filter === 'book') return !isNew(n);
+  if (filter === 'gen')  return isNew(n);
   return true;
 }
 
 function renderIndex() {
   const host = $('#main');
   host.textContent = '';
-  const racks = [
-    { title: 'Reptes 2D', sub: 'Tauler pla · 1–250', from: 1,   to: 250 },
-    { title: 'Reptes 3D', sub: 'Piràmide · 251–500', from: 251, to: 500 },
-  ];
+  const racks = SETS.map(s => ({
+    title: (s.origin === 'gen' ? 'Nous ' : 'Reptes ') + s.dim + 'D',
+    sub: (s.dim === 3 ? 'Piràmide' : 'Tauler pla') + ' · ' + s.from + '–' + s.to +
+         (s.origin === 'gen' ? ' · de fàcil a difícil' : ''),
+    from: s.from, to: s.to, gen: s.origin === 'gen',
+  }));
   let shown = 0;
   for (const rk of racks) {
     const nums = [];
     for (let n = rk.from; n <= rk.to; n++) if (passes(n)) nums.push(n);
     if (!nums.length) continue;
     shown += nums.length;
-    const sec = el('section', 'rack' + (nums.some(done) ? ' rack--timed' : ''));
+    const sec = el('section', 'rack' + (nums.some(done) ? ' rack--timed' : '') + (rk.gen ? ' rack--gen' : ''));
     const head = el('div', 'rack__head');
     head.append(el('b', null, rk.title), el('span', null, rk.sub), el('span', null, `${nums.length} visibles`));
     const grid = el('div', 'rack__grid');
@@ -241,6 +248,8 @@ function renderIndex() {
   if (!shown) {
     const msg = diffFilter !== 'all'
       ? 'Cap repte encaixa amb aquests dos filtres alhora.'
+      : filter === 'gen'
+        ? 'Cap repte nou amb aquest filtre.'
       : filter === 'fav'
       ? 'Cap favorit encara. Obre un repte i toca l’estrella per tenir-lo a mà.'
       : filter === 'done'
@@ -289,7 +298,7 @@ function bead(n) {
 
 function renderScoreboard() {
   const solved = [];
-  for (let n = 1; n <= 500; n++) if (done(n)) solved.push(n);
+  for (let n = 1; n <= LAST; n++) if (done(n)) solved.push(n);
   const total = solved.reduce((a, n) => a + best(n), 0);
   const sb = $('#scoreboard');
   sb.textContent = '';
@@ -300,7 +309,7 @@ function renderScoreboard() {
     d.append(dd, el('dt', null, label));
     return d;
   };
-  sb.append(item('Reptes fets', String(solved.length), ' / 500'));
+  sb.append(item('Reptes fets', String(solved.length), ' / ' + LAST));
   sb.append(item('Temps acumulat', solved.length ? fmt(total, false) : '—'));
   if (solved.length) sb.append(item('Mitjana', fmt(total / solved.length, false)));
 }
@@ -308,7 +317,7 @@ function renderScoreboard() {
 /* ---------------- vista de repte ---------------- */
 
 function openLevel(n, push = true) {
-  n = Math.min(500, Math.max(1, n | 0));
+  n = Math.min(LAST, Math.max(1, n | 0));
   if (current === null) indexScroll = window.scrollY;
   current = n;
   elapsed = 0; stopTimer(); paintClock();
@@ -316,6 +325,7 @@ function openLevel(n, push = true) {
   $('#lv-num').textContent  = n;
   $('#lv-kind').textContent = is3D(n) ? '3D' : '2D';
   $('#lv-diff').textContent = `${DIFF[n]} ${DIFF[n] === 1 ? 'peça' : 'peces'}`;
+  $('#lv-new').hidden = !isNew(n);
   document.title = `Repte ${n} — Kanoodle Ultimate Champion`;
   paintFav();
 
@@ -347,7 +357,7 @@ function openLevel(n, push = true) {
   $('#hintbar').hidden = !todo.length;
 
   $('#prev').disabled = n === 1;
-  $('#next').disabled = n === 500;
+  $('#next').disabled = n === LAST;
 
   renderTimes();
   renderPresets();
@@ -573,13 +583,17 @@ function renderStats() {
   }
 
   const solved2 = [], solved3 = [];
-  for (let n = 1; n <= 500; n++) if (done(n)) (is3D(n) ? solved3 : solved2).push(n);
+  for (let n = 1; n <= LAST; n++) if (done(n)) (is3D(n) ? solved3 : solved2).push(n);
 
   /* 1 — progrés */
   const bars = el('div', 'bars');
-  bars.append(bar('Reptes 2D', solved2.length, 250, '#00ADEF'));
-  bars.append(bar('Reptes 3D', solved3.length, 250, '#F03BA6'));
-  bars.append(bar('En total',  solved2.length + solved3.length, 500, '#98D320'));
+  for (const s of SETS) {
+    let fets = 0;
+    for (let n = s.from; n <= s.to; n++) if (done(n)) fets++;
+    bars.append(bar((s.origin === 'gen' ? 'Nous ' : 'Reptes ') + s.dim + 'D',
+      fets, s.to - s.from + 1, s.dim === 3 ? '#F03BA6' : '#00ADEF'));
+  }
+  bars.append(bar('En total', solved2.length + solved3.length, LAST, '#98D320'));
   host.append(card('Progrés', [bars,
     el('p', 'hint', `${rs.length} ${rs.length === 1 ? 'intent cronometrat' : 'intents cronometrats'} en total.`)]));
 
@@ -1185,7 +1199,7 @@ const sessionTotal = () => session.results.reduce((a, r) => a + (r.t || 0), 0);
 
 function startSession(count) {
   const pool = [];
-  for (let n = 1; n <= 500; n++) if (passes(n)) pool.push(n);
+  for (let n = 1; n <= LAST; n++) if (passes(n)) pool.push(n);
   if (pool.length < 2) { toast('Amb aquests filtres no hi ha prou reptes.'); return; }
   for (let i = pool.length - 1; i > 0; i--) {          // barreja de Fisher–Yates
     const k = Math.floor(Math.random() * (i + 1));
@@ -1316,7 +1330,7 @@ function show(which) {
 
 function backToIndex() {
   current = null;
-  document.title = 'Kanoodle Ultimate Champion — els 500 reptes';
+  document.title = 'Kanoodle Ultimate Champion';
   show('index');
   renderIndex();
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -1430,13 +1444,13 @@ function wire() {
   $('#jump').addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     const n = Number(e.target.value);
-    if (n >= 1 && n <= 500) { e.target.value = ''; openLevel(n); }
-    else toast('Escriu un número entre 1 i 500.');
+    if (n >= 1 && n <= LAST) { e.target.value = ''; openLevel(n); }
+    else toast(`Escriu un número entre 1 i ${LAST}.`);
   });
 
   $('#random').onclick = () => {
     const pool = [];
-    for (let n = 1; n <= 500; n++) if (passes(n) && n !== current) pool.push(n);
+    for (let n = 1; n <= LAST; n++) if (passes(n) && n !== current) pool.push(n);
     if (!pool.length) return toast('Cap repte en aquest filtre.');
     openLevel(pool[Math.floor(Math.random() * pool.length)]);
   };
@@ -1445,7 +1459,7 @@ function wire() {
   let sessionCount = 5;
   const paintPool = () => {
     let pool = 0;
-    for (let n = 1; n <= 500; n++) if (passes(n)) pool++;
+    for (let n = 1; n <= LAST; n++) if (passes(n)) pool++;
     $('#sessionpool').innerHTML = '';
     $('#sessionpool').append(
       document.createTextNode('Es trien a l’atzar d’entre els '),
@@ -1600,7 +1614,7 @@ function wire() {
     else if (e.key === 'f' || e.key === 'F') $('#fav').click();
     else if (e.key === 'p' || e.key === 'P') { if (!$('#hint').hidden) $('#hint').click(); }
     else if (e.key === 'ArrowLeft'  && current > 1)   openLevel(current - 1);
-    else if (e.key === 'ArrowRight' && current < 500) openLevel(current + 1);
+    else if (e.key === 'ArrowRight' && current < LAST) openLevel(current + 1);
     else if (e.code === 'Space') { e.preventDefault(); running ? stopTimer() : startTimer(); }
   });
 
@@ -1623,7 +1637,7 @@ function route() {
     return closeLevel();
   }
   const n = Number(h);
-  if (n >= 1 && n <= 500) return openLevel(n, false);
+  if (n >= 1 && n <= LAST) return openLevel(n, false);
   closeLevel();
 }
 
@@ -1664,6 +1678,11 @@ fetch('data/puzzles.json')
     session    = read(SKEY, null);
     sessionLog = read(HKEY, []) || [];
     if (session && (!Array.isArray(session.ids) || session.idx >= session.ids.length)) session = null;
+    SETS = DATA.sets || [
+      { from: 1, to: 250, dim: 2, origin: 'book' },
+      { from: 251, to: 500, dim: 3, origin: 'book' },
+    ];
+    LAST = Math.max(...SETS.map(s => s.to));
     computeDifficulty();
 
     wire();

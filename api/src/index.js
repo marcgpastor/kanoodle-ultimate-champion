@@ -3,7 +3,7 @@
    formulari de registre obert, i qui no tingui un testimoni vàlid no pot ni
    llegir ni escriure res. */
 
-const MAX_PUZZLE = 500;
+const MAX_PUZZLE = 700;   // 500 del quadern + 200 de generats
 const MAX_MS = 24 * 3600 * 1000;
 const MAX_NAME = 24;
 const MAX_BATCH = 2000;      // intents per petició

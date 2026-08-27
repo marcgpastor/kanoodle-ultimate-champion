@@ -143,7 +143,7 @@ function allPlacements(shapes, dim) {
 const N = 55;   // tant el tauler com la piràmide tenen 55 forats
 
 /** cerca en profunditat: sempre s'ataca el primer forat lliure que queda */
-function search(rows, freeLo, freeHi, pieces, budget, neigh, sizes) {
+function search(rows, freeLo, freeHi, pieces, budget, neigh, sizes, wanted = 1) {
   const list = [];
   for (const r of rows) {
     if (!pieces.includes(r.piece)) continue;
@@ -160,7 +160,7 @@ function search(rows, freeLo, freeHi, pieces, budget, neigh, sizes) {
 
   const used = new Uint8Array(pieces.length);
   const chosen = [];
-  let nodes = 0;
+  let nodes = 0, count = 0, first = null;
 
   const stack = new Int32Array(N);
   const lowest = (lo, hi) => lo ? 31 - Math.clz32(lo & -lo) : 32 + (31 - Math.clz32(hi & -hi));
@@ -205,7 +205,10 @@ function search(rows, freeLo, freeHi, pieces, budget, neigh, sizes) {
   }
 
   function rec(remLo, remHi) {
-    if (!remLo && !remHi) return true;
+    if (!remLo && !remHi) {
+      if (!first) first = chosen.slice();
+      return ++count >= wanted;
+    }
     if (++nodes > budget) throw new RangeError('massa feina');
     const cell = tightest(remLo, remHi);
     if (cell < 0) return false;
@@ -223,9 +226,90 @@ function search(rows, freeLo, freeHi, pieces, budget, neigh, sizes) {
     return false;
   }
 
-  const found = rec(freeLo, freeHi);
-  return { found, chosen: found ? chosen.slice() : null, nodes, options: list };
+  rec(freeLo, freeHi);
+  return { found: count > 0, chosen: first, count, nodes, options: list };
 }
+
+/* ---------------- generar reptes nous ---------------- */
+
+/** generador reproduïble: la mateixa llavor dona sempre el mateix repte */
+function rngFrom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffled(list, rnd) {
+  const out = list.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const k = Math.floor(rnd() * (i + 1));
+    [out[i], out[k]] = [out[k], out[i]];
+  }
+  return out;
+}
+
+/** un encaix sencer de les 12 peces, triat a l'atzar */
+function fullTiling(shapes, sizes, dim, rnd, budget = 2e6) {
+  const rows = shuffled(allPlacements(shapes, dim), rnd);
+  const pieces = shuffled(Object.keys(shapes), rnd);
+  let freeLo = 0, freeHi = 0;
+  for (let c = 0; c < N; c++) { if (c < 32) freeLo |= 1 << c; else freeHi |= 1 << (c - 32); }
+  const res = search(rows, freeLo, freeHi, pieces, budget, dim === 3 ? NEIGH3 : NEIGH2, sizes);
+  return res.found ? res.chosen : null;
+}
+
+/** quantes solucions té un repte, com a molt `limit` */
+function countSolutions(grid, dim, shapes, sizes, limit = 2, budget = 2e6) {
+  const { placed } = readPuzzle(grid, dim);
+  const blocked = new Set();
+  for (const L of Object.keys(placed)) for (const c of placed[L]) blocked.add(c);
+  let freeLo = 0, freeHi = 0;
+  for (let c = 0; c < N; c++) {
+    if (blocked.has(c)) continue;
+    if (c < 32) freeLo |= 1 << c; else freeHi |= 1 << (c - 32);
+  }
+  const pieces = Object.keys(shapes).filter(L => !placed[L]);
+  return search(allPlacements(shapes, dim), freeLo, freeHi, pieces, budget,
+                dim === 3 ? NEIGH3 : NEIGH2, sizes, limit).count;
+}
+
+/**
+ * Fabrica un repte nou: parteix d'un encaix sencer, en deixa unes quantes
+ * peces al tauler i amaga la resta. Només serveix si té una única solució.
+ */
+function generate(seed, dim, toPlace, shapes, sizes) {
+  const rnd = rngFrom(seed);
+  const tiling = fullTiling(shapes, sizes, dim, rnd);
+  if (!tiling) return null;
+
+  return generateFrom(tiling, dim, toPlace, shapes, sizes, rnd, seed);
+}
+
+/** a partir d'un encaix ja trobat, amaga'n unes quantes peces */
+function generateFrom(tiling, dim, toPlace, shapes, sizes, rnd, seed) {
+  const hidden = new Set(shuffled(tiling.map(p => p.piece), rnd).slice(0, toPlace));
+  const cells = new Array(N).fill('.');
+  for (const p of tiling) if (!hidden.has(p.piece)) for (const c of p.cells) cells[c] = p.piece;
+
+  const grid = dim === 3 ? to3D(cells) : to2D(cells);
+  if (countSolutions(grid, dim, shapes, sizes, 2) !== 1) return null;
+  return { seed, dim, toPlace, grid };
+}
+
+const to2D = cells => [0, 1, 2, 3, 4].map(r => cells.slice(r * 11, r * 11 + 11).join(''));
+const to3D = cells => {
+  const out = []; let i = 0;
+  for (let L = 0; L <= 4; L++) {
+    const layer = [];
+    for (let r = 0; r <= L; r++) { layer.push(cells.slice(i, i + L + 1).join('')); i += L + 1; }
+    out.push(layer);
+  }
+  return out;
+};
 
 /* ---------------- entrada ---------------- */
 
@@ -283,6 +367,6 @@ function solve(grid, dim, shapes, sizes, budget = 4e6) {
   };
 }
 
-root.KanoodleSolver = { solve, placements2D, placements3D, orientations, POS3, BASES };
+root.KanoodleSolver = { solve, generate, generateFrom, fullTiling, rngFrom, countSolutions, placements2D, placements3D, orientations, POS3, BASES };
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);

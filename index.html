@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kanoodle Ultimate Champion — els 500 reptes</title>
-<meta name="description" content="Els 500 reptes del quadern de Kanoodle Ultimate Champion, amb cronòmetre, compte enrere i registre de temps.">
+<title>Kanoodle Ultimate Champion — 700 reptes</title>
+<meta name="description" content="Els 500 reptes del quadern de Kanoodle Ultimate Champion i 200 de nous, amb cronòmetre, compte enrere i registre de temps.">
 <meta name="theme-color" content="#100C0A">
 <link rel="preload" href="fonts/bricolage-grotesque-600-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/ibm-plex-sans-400-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -27,7 +27,7 @@
     <div class="masthead__text">
       <p class="eyebrow">Kanoodle</p>
       <h1>Ultimate&nbsp;Champion</h1>
-      <p class="lede">Els 500 reptes del quadern, sense el quadern. Tria, munta, cronometra.</p>
+      <p class="lede">Els 500 reptes del quadern i 200 de nous. Tria, munta, cronometra.</p>
     </div>
     <div class="masthead__meta">
       <dl class="scoreboard" id="scoreboard"></dl>
@@ -47,11 +47,13 @@
       <button type="button" data-filter="todo" aria-pressed="false">Pendents</button>
       <button type="button" data-filter="done" aria-pressed="false">Fets</button>
       <button type="button" data-filter="fav"  aria-pressed="false">★ Favorits</button>
+      <button type="button" data-filter="book" aria-pressed="false">Del quadern</button>
+      <button type="button" data-filter="gen"  aria-pressed="false">Nous</button>
     </div>
     <div class="controls__right">
       <label class="jump">
         <span class="sr-only">Vés al repte número</span>
-        <input id="jump" type="search" inputmode="numeric" placeholder="Núm. 1–500" autocomplete="off">
+        <input id="jump" type="search" inputmode="numeric" placeholder="Núm. 1–700" autocomplete="off">
       </label>
       <button type="button" id="random" class="btn btn--accent">Repte a l'atzar</button>
       <button type="button" id="startsession" class="btn btn--ghost">Mode sessió</button>
@@ -145,6 +147,7 @@
         <span class="level__num" id="lv-num"></span>
         <span class="level__kind" id="lv-kind"></span>
         <span class="level__diff" id="lv-diff"></span>
+        <span class="level__new" id="lv-new" hidden>nou</span>
         <button type="button" id="fav" class="fav" aria-pressed="false" title="Marca'l com a favorit">★</button>
       </h2>
       <p class="level__note" id="lv-note" hidden></p>
