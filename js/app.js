@@ -98,16 +98,22 @@ function ball(g, cx, cy, r, letter, ghost) {
     g.append(svgEl('circle', { cx, cy, r, fill: '#241E1B', stroke: '#3D3532', 'stroke-width': r * .1 }));
     return;
   }
+  // les boletes de pista van dins d'un grup propi: tocar-les al tauler
+  // amaga la peça, igual que tocar-la a la llista
+  const target = ghost ? svgEl('g', { 'data-ghost': letter, class: 'ghost' }) : g;
   if (ghost) {
-    g.append(svgEl('circle', { cx, cy, r, fill: '#241E1B' }));
-    g.append(svgEl('circle', {
+    const tip = svgEl('title', {});
+    tip.textContent = `Amaga la peça ${letter}`;
+    target.append(tip);
+    target.append(svgEl('circle', { cx, cy, r, fill: '#241E1B' }));
+    target.append(svgEl('circle', {
       cx, cy, r: r * .93, fill: DATA.colors[letter], 'fill-opacity': .38,
       stroke: DATA.colors[letter], 'stroke-width': r * .13,
       'stroke-dasharray': `${r * .42} ${r * .3}`
     }));
   } else {
-    g.append(svgEl('circle', { cx, cy, r, fill: DATA.colors[letter], stroke: '#100C0A', 'stroke-width': r * .09 }));
-    g.append(svgEl('circle', { cx, cy, r, fill: 'url(#gloss)' }));
+    target.append(svgEl('circle', { cx, cy, r, fill: DATA.colors[letter], stroke: '#100C0A', 'stroke-width': r * .09 }));
+    target.append(svgEl('circle', { cx, cy, r, fill: 'url(#gloss)' }));
   }
   const t = svgEl('text', {
     x: cx, y: cy, fill: ghost ? DATA.colors[letter] : '#16110F',
@@ -116,7 +122,8 @@ function ball(g, cx, cy, r, letter, ghost) {
     'font-family': 'IBM Plex Sans, sans-serif', 'font-weight': '600', 'font-size': r * 1.15
   });
   t.textContent = letter;
-  g.append(t);
+  target.append(t);
+  if (ghost) g.append(target);
 }
 
 function draw2D(rows, ghosts) {
@@ -1460,6 +1467,11 @@ function wire() {
     sessionCount = Number(b.dataset.n);
   });
   $('#sessiongo').onclick = () => { dlg.close(); startSession(sessionCount); };
+
+  $('#lv-diagram').addEventListener('click', e => {
+    const g = e.target.closest && e.target.closest('[data-ghost]');
+    if (g) toggleHint(g.getAttribute('data-ghost'));
+  });
 
   $('#hint').onclick    = revealNext;
   $('#hintall').onclick = () => withSolution(current, sol => {

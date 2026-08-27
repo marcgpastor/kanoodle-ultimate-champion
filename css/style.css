@@ -261,6 +261,8 @@ button{font:inherit;color:inherit}
 }
 .diagram{background:var(--tray);border-radius:var(--radius);padding:clamp(14px,2.6vw,26px)}
 .diagram svg{display:block;width:100%;height:auto}
+.diagram .ghost{cursor:pointer}
+.diagram .ghost:hover circle:last-of-type{fill-opacity:.62}
 .diagram__caption{margin-top:.8em;color:var(--chalk-dim);font-size:.85rem}
 .diagram--3d svg{max-width:min(100%,340px);margin:0 auto}
 
