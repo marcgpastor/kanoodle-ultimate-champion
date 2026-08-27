@@ -1,0 +1,16 @@
+{
+  "name": "Kanoodle Ultimate Champion",
+  "short_name": "Kanoodle",
+  "description": "Els 500 reptes del quadern, amb cronòmetre i registre de temps.",
+  "lang": "ca",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#100C0A",
+  "theme_color": "#100C0A",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

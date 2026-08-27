@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kanoodle Ultimate Champion — els 500 reptes</title>
+<meta name="description" content="Els 500 reptes del quadern de Kanoodle Ultimate Champion, amb cronòmetre, compte enrere i registre de temps.">
+<meta name="theme-color" content="#100C0A">
+<link rel="preload" href="fonts/bricolage-grotesque-600-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/ibm-plex-sans-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kanoodle">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23100C0A'/%3E%3Ccircle cx='11' cy='11' r='5' fill='%2300ADEF'/%3E%3Ccircle cx='21' cy='11' r='5' fill='%23F03BA6'/%3E%3Ccircle cx='11' cy='21' r='5' fill='%2398D320'/%3E%3Ccircle cx='21' cy='21' r='5' fill='%23F0E406'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<a class="skip" href="#main">Vés al contingut</a>
+
+<!-- ============ ÍNDEX ============ -->
+<div id="view-index" class="view">
+  <header class="masthead">
+    <div class="masthead__text">
+      <p class="eyebrow">Kanoodle</p>
+      <h1>Ultimate&nbsp;Champion</h1>
+      <p class="lede">Els 500 reptes del quadern, sense el quadern. Tria, munta, cronometra.</p>
+    </div>
+    <div class="masthead__meta">
+      <dl class="scoreboard" id="scoreboard"></dl>
+      <button type="button" id="tostats" class="link">Mira les estadístiques &rarr;</button>
+    </div>
+  </header>
+
+  <nav class="controls" aria-label="Filtres">
+    <div class="segmented" role="group" aria-label="Quins reptes vols veure">
+      <button type="button" data-filter="all"  class="is-on" aria-pressed="true">Tots</button>
+      <button type="button" data-filter="2d"   aria-pressed="false">2D</button>
+      <button type="button" data-filter="3d"   aria-pressed="false">3D</button>
+      <button type="button" data-filter="todo" aria-pressed="false">Pendents</button>
+      <button type="button" data-filter="done" aria-pressed="false">Fets</button>
+      <button type="button" data-filter="fav"  aria-pressed="false">★ Favorits</button>
+    </div>
+    <div class="controls__right">
+      <label class="jump">
+        <span class="sr-only">Vés al repte número</span>
+        <input id="jump" type="search" inputmode="numeric" placeholder="Núm. 1–500" autocomplete="off">
+      </label>
+      <button type="button" id="random" class="btn btn--accent">Repte a l'atzar</button>
+      <button type="button" id="startsession" class="btn btn--ghost">Mode sessió</button>
+    </div>
+  </nav>
+
+  <div class="subcontrols">
+    <div class="chips" id="diffchips" role="group" aria-label="Dificultat">
+      <span class="chips__label">Dificultat</span>
+      <button type="button" data-diff="all"  class="is-on" aria-pressed="true">Tota</button>
+      <button type="button" data-diff="easy" aria-pressed="false">1–4 peces</button>
+      <button type="button" data-diff="mid"  aria-pressed="false">5–6</button>
+      <button type="button" data-diff="hard" aria-pressed="false">7 o més</button>
+    </div>
+    <p class="ringkey">
+      <span class="ringkey__ramp" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      Anell més clar, més peces per col·locar
+    </p>
+  </div>
+
+  <main id="main" class="pegboard" aria-label="Índex de reptes"></main>
+
+  <dialog id="sessiondlg" class="dlg" aria-labelledby="dlgtitle">
+    <div class="dlg__body">
+      <h2 id="dlgtitle">Mode sessió</h2>
+      <p class="dlg__lede">Uns quants reptes seguits, cronometrats un darrere l'altre, amb el resum al final.</p>
+      <div class="chips" id="sessioncount" role="group" aria-label="Quants reptes">
+        <span class="chips__label">Reptes</span>
+        <button type="button" data-n="3" aria-pressed="false">3</button>
+        <button type="button" data-n="5" class="is-on" aria-pressed="true">5</button>
+        <button type="button" data-n="10" aria-pressed="false">10</button>
+      </div>
+      <p class="dlg__pool" id="sessionpool"></p>
+      <div class="dlg__actions">
+        <button type="button" id="sessiongo" class="btn btn--accent">Comença la sessió</button>
+        <button type="button" id="sessioncancel" class="btn btn--ghost">Ara no</button>
+      </div>
+    </div>
+  </dialog>
+
+  <footer class="colophon">
+    <p>Els temps i els favorits es desen només en aquest navegador.</p>
+    <p class="colophon__actions">
+      <button type="button" id="export" class="link">Exporta-ho tot</button>
+      <button type="button" id="import" class="link">Importa-ho</button>
+      <button type="button" id="wipe" class="link link--danger">Esborra-ho tot</button>
+    </p>
+    <input type="file" id="importfile" accept="application/json" hidden>
+  </footer>
+</div>
+
+<!-- ============ REPTE ============ -->
+<div id="view-level" class="view" hidden>
+  <div class="sessionbar" id="sessionbar" hidden>
+    <button type="button" id="sessionquit" class="btn btn--ghost">Deixa la sessió</button>
+    <div class="sessionbar__mid">
+      <span class="dots" id="sessiondots" aria-hidden="true"></span>
+      <span class="sessionbar__count" id="sessioncounter"></span>
+    </div>
+    <div class="sessionbar__right">
+      <span class="sessionbar__total" id="sessiontotal">00:00</span>
+      <button type="button" id="sessionskip" class="btn btn--ghost">Salta'l</button>
+    </div>
+  </div>
+
+  <div class="levelbar" id="levelbar">
+    <button type="button" id="back" class="btn btn--ghost">&larr;&nbsp;Índex</button>
+    <div class="levelbar__nav">
+      <button type="button" id="prev" class="btn btn--ghost" aria-label="Repte anterior">&larr;</button>
+      <button type="button" id="next" class="btn btn--ghost" aria-label="Repte següent">&rarr;</button>
+    </div>
+  </div>
+
+  <div class="level">
+    <div class="level__diagram">
+      <h2 class="level__title">
+        <span class="level__num" id="lv-num"></span>
+        <span class="level__kind" id="lv-kind"></span>
+        <span class="level__diff" id="lv-diff"></span>
+        <button type="button" id="fav" class="fav" aria-pressed="false" title="Marca'l com a favorit">★</button>
+      </h2>
+      <p class="level__note" id="lv-note" hidden></p>
+      <div class="diagram" id="lv-diagram"></div>
+      <p class="diagram__caption" id="lv-caption" hidden></p>
+
+      <section class="pieces">
+        <h3>Peces que has de col·locar <span id="lv-pcount"></span></h3>
+        <div class="pieces__grid" id="lv-pieces"></div>
+      </section>
+    </div>
+
+    <aside class="level__side">
+      <section class="clock" aria-label="Cronòmetre">
+        <div class="clock__modes" role="group" aria-label="Mode del rellotge">
+          <button type="button" data-mode="up"   class="is-on" aria-pressed="true">Cronòmetre</button>
+          <button type="button" data-mode="down" aria-pressed="false">Compte enrere</button>
+        </div>
+
+        <div class="clock__setup" id="setup" hidden>
+          <h4>Quant de temps et dones</h4>
+          <div class="clock__presets" id="presets"></div>
+          <div class="clock__adjust">
+            <button type="button" data-delta="-10">&minus;10&nbsp;s</button>
+            <span id="targetlabel">3:00</span>
+            <button type="button" data-delta="10">+10&nbsp;s</button>
+          </div>
+          <button type="button" id="autotarget" class="clock__auto" aria-pressed="true">
+            Proposa'm el meu millor temps
+          </button>
+        </div>
+
+        <p class="clock__time" id="clock">00:00<span class="clock__frac">.0</span></p>
+        <p class="clock__over" id="clockover" hidden>S'ha acabat el temps</p>
+
+        <div class="clock__buttons">
+          <button type="button" id="startstop" class="btn btn--accent btn--big">Comença</button>
+          <button type="button" id="reset" class="btn btn--ghost">Posa a zero</button>
+        </div>
+        <button type="button" id="save" class="btn btn--solid" disabled>Desa el temps</button>
+        <button type="button" id="sound" class="clock__sound" aria-pressed="true">🔊 So activat</button>
+      </section>
+
+      <section class="manual">
+        <h3>O apunta'l a mà</h3>
+        <form id="manualform" class="manual__row">
+          <label class="sr-only" for="manualtime">Temps</label>
+          <input id="manualtime" type="text" inputmode="numeric" placeholder="1:23 o 83" autocomplete="off">
+          <button type="submit" class="btn btn--solid">Desa</button>
+        </form>
+      </section>
+
+      <section class="times">
+        <h3>Els teus temps</h3>
+        <div id="lv-spark"></div>
+        <ol class="times__list" id="lv-times"></ol>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<!-- ============ RESUM DE LA SESSIÓ ============ -->
+<div id="view-session" class="view" hidden>
+  <div class="levelbar">
+    <button type="button" id="sessionback" class="btn btn--ghost">&larr;&nbsp;Índex</button>
+    <button type="button" id="sessionagain" class="btn btn--accent">Una altra sessió</button>
+  </div>
+  <h2 class="stats__title">Sessió acabada</h2>
+  <div id="summary"></div>
+</div>
+
+<!-- ============ ESTADÍSTIQUES ============ -->
+<div id="view-stats" class="view" hidden>
+  <div class="levelbar">
+    <button type="button" id="statsback" class="btn btn--ghost">&larr;&nbsp;Índex</button>
+  </div>
+  <h2 class="stats__title">Com et va anant</h2>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

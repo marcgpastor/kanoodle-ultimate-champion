@@ -1,0 +1,7 @@
+tools/svg/
+tools/render/
+__pycache__/
+*.pyc
+.DS_Store
+KanoodleUltimateChampionGuide.pdf
+.claude/
