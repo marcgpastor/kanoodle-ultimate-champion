@@ -77,7 +77,12 @@ function parseTime(raw) {
 }
 
 const dateLabel = iso => new Date(iso).toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-const dayKey    = d => new Date(d).toISOString().slice(0, 10);
+// Dia local, no UTC: si no, el que jugues de matinada cau al dia d'abans.
+const dayKey = d => {
+  const x = new Date(d);
+  const p2 = v => String(v).padStart(2, '0');
+  return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`;
+};
 
 /* ---------------- dibuix dels reptes ---------------- */
 

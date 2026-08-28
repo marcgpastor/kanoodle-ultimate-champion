@@ -65,8 +65,10 @@ async function playerFrom(request, env) {
   ).bind(await sha256hex(token)).first();
 }
 
+// Sense clau configurada no hi ha administració possible: val més quedar-se
+// fora un mateix que deixar entrar qualsevol amb la clau per defecte.
 const isAdmin = (request, env) =>
-  sameSecret(request.headers.get('X-Admin-Key') || '', env.ADMIN_KEY || ' ');
+  !!env.ADMIN_KEY && sameSecret(request.headers.get('X-Admin-Key') || '', env.ADMIN_KEY);
 
 /* ---------------- rutes ---------------- */
 
