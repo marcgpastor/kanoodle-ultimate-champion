@@ -52,6 +52,16 @@ function addRun(n, ms) {
   return prev === null || ms < prev;
 }
 
+// Què acceptem d'un fitxer importat. Són els mateixos límits que posa l'API, de
+// manera que res del que entri aquí no se li descartarà després en silenci.
+const MAX_MS = 24 * 3600 * 1000;
+const okPuzzle = n => Number.isInteger(n) && n >= 1 && n <= LAST;
+const okRun = r => !!r && Number.isFinite(r.t) && r.t >= 1 && r.t <= MAX_MS
+  && typeof r.d === 'string' && r.d.length >= 10 && r.d.length <= 40
+  && !Number.isNaN(new Date(r.d).getTime());
+const okSession = s => !!s && typeof s.startedAt === 'string' && s.startedAt.length >= 10
+  && Array.isArray(s.ids) && Array.isArray(s.results);
+
 /* ---------------- format ---------------- */
 
 function fmt(ms, tenths = true) {
@@ -1588,17 +1598,36 @@ function wire() {
     f.text().then(txt => {
       const raw = JSON.parse(txt);
       const incoming = raw.times || raw;          // accepta també l'export antic
-      let added = 0;
+      let added = 0, tirat = 0;
       for (const n in incoming) {
-        if (!Array.isArray(incoming[n])) continue;
-        const have = new Set(runs(n).map(r => r.d));
-        for (const r of incoming[n]) if (r && !have.has(r.d)) { (store[n] = store[n] || []).push(r); added++; }
+        const num = Number(n);
+        if (!okPuzzle(num) || !Array.isArray(incoming[n])) {
+          tirat += Array.isArray(incoming[n]) ? incoming[n].length : 1;
+          continue;
+        }
+        const have = new Set(runs(num).map(r => r.d));
+        for (const r of incoming[n]) {
+          if (!okRun(r)) { tirat++; continue; }
+          if (have.has(r.d)) continue;            // el mateix intent dues vegades
+          have.add(r.d);
+          (store[num] = store[num] || []).push({ t: r.t, d: r.d });
+          added++;
+        }
       }
       let favAdded = 0;
-      for (const n of raw.favs || []) if (!favs.has(Number(n))) { favs.add(Number(n)); favAdded++; }
+      for (const n of raw.favs || []) {
+        const num = Number(n);
+        if (!okPuzzle(num)) { tirat++; continue; }
+        if (!favs.has(num)) { favs.add(num); favAdded++; }
+      }
       if (Array.isArray(raw.sessions)) {
         const have = new Set(sessionLog.map(s => s.startedAt));
-        for (const s of raw.sessions) if (s && !have.has(s.startedAt)) sessionLog.push(s);
+        for (const s of raw.sessions) {
+          if (!okSession(s)) { tirat++; continue; }
+          if (have.has(s.startedAt)) continue;
+          have.add(s.startedAt);
+          sessionLog.push(s);
+        }
         sessionLog.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
         sessionLog = sessionLog.slice(0, 50);
         saveLog();
@@ -1607,7 +1636,8 @@ function wire() {
       if (playing()) { API.markEverything(); syncNow(); }
       renderIndex();
       toast(`${added} ${added === 1 ? 'temps importat' : 'temps importats'}` +
-            (favAdded ? ` i ${favAdded} ${favAdded === 1 ? 'favorit' : 'favorits'}.` : '.'));
+            (favAdded ? ` i ${favAdded} ${favAdded === 1 ? 'favorit' : 'favorits'}` : '') +
+            (tirat ? `. ${tirat} ${tirat === 1 ? 'entrada descartada' : 'entrades descartades'}.` : '.'));
     }).catch(() => toast('El fitxer no s’ha pogut llegir.'));
     e.target.value = '';
   };
