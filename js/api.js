@@ -20,8 +20,10 @@ const AKEY = 'kanoodle.adminkey.v1';
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-const FRESH = { lastSyncAt: '', pushAll: true, delRuns: [], favAdd: [], favDel: [] };
-const pending = () => Object.assign({}, FRESH, read(SKEY, null));
+// Funció i no objecte: si fos un objecte, les seves llistes s'acabarien
+// compartint amb la cua i un push les embrutaria per sempre.
+const fresh = () => ({ lastSyncAt: '', pushAll: true, delRuns: [], favAdd: [], favDel: [] });
+const pending = () => Object.assign(fresh(), read(SKEY, null));
 const setPending = v => write(SKEY, v);
 
 let player = read(PKEY, null);
@@ -53,7 +55,7 @@ async function join(token, name) {
   const res = await call('/join', { method: 'POST', body: { token, name } });
   player = { token, id: res.id, name: res.name };
   write(PKEY, player);
-  setPending(Object.assign({}, FRESH));   // en entrar, puja tot el que ja tinguis
+  setPending(fresh());                    // en entrar, puja tot el que ja tinguis
   return player;
 }
 
@@ -104,6 +106,9 @@ async function sync(local, full) {
   if (!enabled() || !player) return null;
   const s = pending();
   const since = s.pushAll ? '' : s.lastSyncAt;
+  // L'hora d'ara, no la de quan torni la resposta: el que apuntis mentre dura
+  // la petició ha de quedar per damunt d'aquesta marca i pujar la propera volta.
+  const startedAt = new Date().toISOString();
 
   const addRuns = [];
   for (const puzzle of Object.keys(local.store || {}))
@@ -121,11 +126,44 @@ async function sync(local, full) {
     addSessions,
   };
 
-  const res = await call('/sync', { method: 'POST', body, token: player.token });
+  // Buidem la cua abans de sortir, no en tornar: així el que marquis mentre la
+  // petició és en vol s'hi acumula sol en comptes de quedar-hi soterrat. Si la
+  // petició peta, tornem a posar-hi el que no ha arribat.
+  setPending({ lastSyncAt: startedAt, pushAll: false, delRuns: [], favAdd: [], favDel: [] });
 
-  setPending({ lastSyncAt: new Date().toISOString(), pushAll: false, delRuns: [], favAdd: [], favDel: [] });
+  let res;
+  try {
+    res = await call('/sync', { method: 'POST', body, token: player.token });
+  } catch (err) {
+    requeue(s);
+    throw err;
+  }
+
   if (res.board) write(BKEY, { at: Date.now(), players: res.board.players, times: res.board.times });
   return res;
+}
+
+/** torna a la cua el que no ha arribat, sense trepitjar el que s'hi ha afegit
+    mentrestant: davant d'un mateix repte mana sempre la marca més nova */
+function requeue(sent) {
+  const now = pending();
+
+  const key = r => r[0] + '|' + r[1];
+  const delRuns = [...sent.delRuns];
+  const vistos = new Set(delRuns.map(key));
+  for (const r of now.delRuns) if (!vistos.has(key(r))) { vistos.add(key(r)); delRuns.push(r); }
+
+  const favAdd = new Set(sent.favAdd), favDel = new Set(sent.favDel);
+  for (const v of now.favAdd) { favAdd.add(v); favDel.delete(v); }
+  for (const v of now.favDel) { favDel.add(v); favAdd.delete(v); }
+
+  setPending({
+    lastSyncAt: sent.lastSyncAt,
+    pushAll: sent.pushAll || now.pushAll,
+    delRuns,
+    favAdd: [...favAdd],
+    favDel: [...favDel],
+  });
 }
 
 /** l'última classificació que s'ha baixat; serveix també sense connexió */
