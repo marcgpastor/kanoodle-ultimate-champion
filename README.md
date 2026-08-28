@@ -158,7 +158,7 @@ Les tandes 501–600 (2D) i 601–700 (3D) no surten del quadern: les fabrica
 peces, se'n deixen unes quantes al tauler i s'amaga la resta, que és exactament
 el que fa el quadern.
 
-Dues diferències a favor:
+Tres diferències a favor:
 
 - **Tenen una única solució.** Dels 500 del quadern, només 197 dels 250 en 2D i
   152 dels 249 en 3D en tenen una de sola; els altres n'admeten més d'una. Els
@@ -166,10 +166,20 @@ Dues diferències a favor:
 - **Van de fàcil a difícil.** Dins de cada tanda estan ordenats per peces a
   col·locar, de 2 a 10, amb una corba pensada perquè n'hi hagi de tots els
   gustos. El quadern es concentra a 4–6 peces i no segueix cap ordre.
+- **Els 3D es paren drets.** Cap bola del diagrama no queda penjada a l'aire.
+
+La tercera cal explicar-la. La piràmide té gravetat: una peça a les capes de
+dalt no s'aguanta si no hi ha res a sota, i un diagrama que demani sostenir-la
+amb el dit mentre en poses una altra no es pot ni parar per començar a jugar.
+La regla que hi apliquem és la mateixa que segueix el quadern sense dir-la:
+**cada bola dibuixada ha de tocar-ne alguna de les quatre de sota**, o ser a la
+base. Com que val per a totes, cada bola acaba tenint una cadena de suports
+fins a terra. El quadern la compleix en 243 dels seus 250 reptes 3D; la primera
+tanda generada, en canvi, només en 28 de 100, i per això es va refer.
 
 La part cara és trobar l'encaix (14 ms en 2D, 0,7 s en 3D); un cop trobat, cada
 repte que se'n deriva costa menys de 2 ms, així que d'un sol encaix en surten
-desenes. Les 200 es fabriquen en 14 segons.
+desenes. Les 200 es fabriquen en 7 segons.
 
 És determinista: amb la mateixa llavor surten sempre els mateixos reptes.
 
@@ -207,7 +217,7 @@ cd tools && node solve-all.js
 comprova els 700 i verifica cada solució de manera independent: que cap peça se
 solapi, que es cobreixin els 55 forats i que cada peça col·locada sigui una
 posició legal de la seva forma. Als generats hi comprova, a més, que la solució
-sigui única.
+sigui única, i als 3D que el diagrama es pugui parar dret.
 
 ## Estructura
 

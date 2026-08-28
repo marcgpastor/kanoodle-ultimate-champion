@@ -12,7 +12,7 @@ for (const dim of [2, 3])
     legal[dim].add(r.piece + '|' + r.cells.slice().sort((a, b) => a - b).join(','));
 
 const problems = [];
-let total = 0, worst = 0, worstN = 0, maxNodes = 0, unics = 0, generats = 0;
+let total = 0, worst = 0, worstN = 0, maxNodes = 0, unics = 0, generats = 0, drets = 0, gen3d = 0;
 
 const sets = D.sets || [{ from: 1, to: 250, dim: 2, origin: 'book' }, { from: 251, to: 500, dim: 3, origin: 'book' }];
 const last = Math.max(...sets.map(s => s.to));
@@ -39,6 +39,11 @@ for (let n = 1; n <= last; n++) {
     generats++;
     const c = S.countSolutions(grid, dim, D.shapes, D.sizes, 2);
     if (c === 1) unics++; else problems.push(`${n}: generat amb ${c > 1 ? 'més d\'una' : 'cap'} solució`);
+    // i els 3D, a més, s'han de poder parar: cap bola a l'aire
+    if (dim === 3) {
+      gen3d++;
+      if (S.stable3D(flat)) drets++; else problems.push(`${n}: generat amb boles a l'aire`);
+    }
   }
 
   const seen = new Set();
@@ -63,6 +68,7 @@ for (let n = 1; n <= last; n++) {
 
 console.log(`${last} reptes · mitjana ${(total / last).toFixed(2)} ms · pitjor ${worst.toFixed(0)} ms (repte ${worstN}) · nodes màx ${maxNodes}`);
 if (generats) console.log(`generats amb solució única: ${unics}/${generats}`);
+if (gen3d) console.log(`generats 3D que es paren drets: ${drets}/${gen3d}`);
 if (problems.length) {
   console.log(`\n${problems.length} problemes:`);
   for (const p of problems.slice(0, 20)) console.log('  ' + p);

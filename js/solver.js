@@ -122,6 +122,34 @@ const NEIGH2 = Array.from({ length: 55 }, (_, id) => {
   return out;
 });
 
+// Els 4 forats de sota que aguanten cada bola (cap, a la base). Una bola que no
+// en toca ni un penja a l'aire i la peça no s'hi aguanta.
+const SUPPORT3 = POS3.map(([k, i, j]) => {
+  const out = [];
+  if (k === 0) return out;
+  for (const dx of [1, -1]) for (const dy of [1, -1]) {
+    const id = IDX3.get(`${2 * i + k + dx},${2 * j + k + dy},${k - 1}`);
+    if (id !== undefined) out.push(id);
+  }
+  return out;
+});
+
+/**
+ * Es pot parar de debò aquest diagrama 3D? Cada bola dibuixada ha de tocar-ne
+ * alguna de sota, o ser a la base. Com que la regla val per a totes, cada bola
+ * acaba tenint una cadena de suports fins a terra i res no queda penjat.
+ * `cells` pot ser la llista plana de 55 o la cadena equivalent.
+ */
+function stable3D(cells) {
+  for (let c = 0; c < N; c++) {
+    if (cells[c] === '.') continue;
+    const sup = SUPPORT3[c];
+    if (!sup.length) continue;                      // ja recolza a terra
+    if (!sup.some(s => cells[s] !== '.')) return false;
+  }
+  return true;
+}
+
 const NEIGH3 = POS3.map(([k, i, j]) => {
   const out = [];
   for (const [dx, dy, dz] of UNITS) {
@@ -295,6 +323,9 @@ function generateFrom(tiling, dim, toPlace, shapes, sizes, rnd, seed) {
   const cells = new Array(N).fill('.');
   for (const p of tiling) if (!hidden.has(p.piece)) for (const c of p.cells) cells[c] = p.piece;
 
+  // Un repte 3D que no s'aguanta no serveix: abans de res, que es puga parar.
+  if (dim === 3 && !stable3D(cells)) return null;
+
   const grid = dim === 3 ? to3D(cells) : to2D(cells);
   if (countSolutions(grid, dim, shapes, sizes, 2) !== 1) return null;
   return { seed, dim, toPlace, grid };
@@ -367,6 +398,6 @@ function solve(grid, dim, shapes, sizes, budget = 4e6) {
   };
 }
 
-root.KanoodleSolver = { solve, generate, generateFrom, fullTiling, rngFrom, countSolutions, placements2D, placements3D, orientations, POS3, BASES };
+root.KanoodleSolver = { solve, generate, generateFrom, fullTiling, rngFrom, countSolutions, stable3D, placements2D, placements3D, orientations, POS3, SUPPORT3, BASES };
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);

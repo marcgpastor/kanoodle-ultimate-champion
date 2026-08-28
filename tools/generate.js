@@ -4,6 +4,11 @@
    al tauler i s'amaguen la resta. A diferència del quadern, aquí exigim que hi
    hagi **una única solució**, i els ordenem de menys a més peces per col·locar.
 
+   Els 3D, a més, han de ser **parables**: cap bola del diagrama pot quedar a
+   l'aire (mireu `stable3D` al resolutor). Sense això surten reptes amb peces
+   flotant a les capes de dalt que no hi ha manera de muntar a la piràmide de
+   debò. El quadern respecta aquesta regla en 243 dels seus 250 reptes 3D.
+
    És determinista: amb la mateixa llavor surten sempre els mateixos reptes.
 
    Ús:  node tools/generate.js [--seed 20260827] [--count 100]            */
@@ -56,7 +61,7 @@ function makeBatch(dim, seed) {
       got[k] = (got[k] || 0) + 1;
       out.push({ grid: p.grid, toPlace: k });
     }
-    if (tilings > 400) break;   // xarxa de seguretat
+    if (tilings > 2000) break;   // xarxa de seguretat
   }
 
   out.sort((a, b) => a.toPlace - b.toPlace);
@@ -76,6 +81,11 @@ const sets = [
 for (const b of batches) {
   const t0 = Date.now();
   const { out, tilings } = makeBatch(b.dim, b.seed);
+  if (out.length < COUNT) {
+    console.error(`${b.dim}D: només n'han sortit ${out.length} de ${COUNT}. ` +
+      `No toco res: puja la xarxa de seguretat o afluixa la corba.`);
+    process.exit(1);
+  }
   const dict = b.dim === 3 ? D.p3d : D.p2d;
   for (const k of Object.keys(dict)) if (Number(k) >= b.from) delete dict[k];
   out.forEach((p, i) => { dict[b.from + i] = p.grid; });
@@ -86,6 +96,10 @@ for (const b of batches) {
     `${tilings} encaixos · ${Math.round((Date.now() - t0) / 1000)} s`);
   console.log('   peces per col·locar: ' +
     Object.keys(spread).sort((a, c) => a - c).map(k => `${k}→${spread[k]}`).join('  '));
+  if (b.dim === 3) {
+    const dret = out.filter(p => S.stable3D(p.grid.flat().join(''))).length;
+    console.log(`   es paren drets: ${dret}/${out.length}`);
+  }
 
   sets.push({ from: b.from, to: b.from + out.length - 1, dim: b.dim, origin: 'gen', seed: b.seed });
 }
