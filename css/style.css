@@ -11,6 +11,7 @@
   --cyan:#00ADEF;       /* acció */
   --lime:#98D320;       /* fet / rècord */
   --magenta:#F03BA6;    /* alerta */
+  --amber:#F79806;      /* provisional: el taronja de la peça A */
 
   --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
@@ -169,12 +170,16 @@ button{font:inherit;color:inherit}
 /* les tandes generades, ben distingides de les del quadern */
 .rack--gen{border:1px solid rgba(152,211,32,.28);background:linear-gradient(var(--tray),#1A1B12)}
 .rack--gen .rack__head b{color:var(--lime)}
-.rack--gen .rack__head b::after{
-  content:"nou";margin-left:.7em;font:600 .6rem var(--mono);letter-spacing:.18em;
-  text-transform:uppercase;color:#132000;background:var(--lime);
-  padding:.25em .6em;border-radius:999px;vertical-align:.22em
-}
 .rack--gen .bead:not(.is-done):hover{border-color:var(--lime)}
+
+/* fetes per ordinador i encara sense rodar: taronja, que no es confongui amb
+   el verd de "fet" ni amb el magenta d'errata del quadern */
+.beta{
+  font-family:var(--mono);font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:#2A1600;background:var(--amber);border-radius:999px;cursor:help
+}
+.rack__head .beta{font-size:.6rem;padding:.25em .6em;align-self:center}
+.level__title .beta{font-size:.78rem;padding:.35em .75em}
 
 /* ---------- mode sessió ---------- */
 .dlg{
@@ -264,10 +269,6 @@ button{font:inherit;color:inherit}
   font-family:var(--mono);font-size:.78rem;font-weight:600;
   color:var(--chalk-dim);border:1px solid var(--hole-rim);
   padding:.3em .7em;border-radius:999px;white-space:nowrap
-}
-.level__new{
-  font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.18em;
-  color:#132000;background:var(--lime);padding:.35em .75em;border-radius:999px
 }
 .level__note{
   color:#FFD9EC;background:rgba(240,59,166,.13);border-left:3px solid var(--magenta);
@@ -501,7 +502,7 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 @media (max-width:600px){
   .masthead__meta{width:100%}
   .rack__head{flex-wrap:wrap}
-  .rack__head span{display:none}
+  .rack__head span:not(.beta){display:none}   /* la beta s'ha de veure sempre */
   .masthead{padding-top:26px}
   .scoreboard{gap:20px}
 }

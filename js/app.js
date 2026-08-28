@@ -239,7 +239,14 @@ function renderIndex() {
     shown += nums.length;
     const sec = el('section', 'rack' + (nums.some(done) ? ' rack--timed' : '') + (rk.gen ? ' rack--gen' : ''));
     const head = el('div', 'rack__head');
-    head.append(el('b', null, rk.title), el('span', null, rk.sub), el('span', null, `${nums.length} visibles`));
+    head.append(el('b', null, rk.title));
+    if (rk.gen) {
+      const tag = el('span', 'beta', 'beta');
+      tag.title = 'Reptes fets per ordinador, no del quadern: comprovats pel ' +
+                  'resolutor però encara sense rodar. Si en trobes cap de rar, avisa.';
+      head.append(tag);
+    }
+    head.append(el('span', null, rk.sub), el('span', null, `${nums.length} visibles`));
     const grid = el('div', 'rack__grid');
     for (const n of nums) grid.append(bead(n));
     sec.append(head, grid);
@@ -325,7 +332,7 @@ function openLevel(n, push = true) {
   $('#lv-num').textContent  = n;
   $('#lv-kind').textContent = is3D(n) ? '3D' : '2D';
   $('#lv-diff').textContent = `${DIFF[n]} ${DIFF[n] === 1 ? 'peça' : 'peces'}`;
-  $('#lv-new').hidden = !isNew(n);
+  $('#lv-beta').hidden = !isNew(n);
   document.title = `Repte ${n} — Kanoodle Ultimate Champion`;
   paintFav();
 

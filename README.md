@@ -7,8 +7,8 @@ fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
 ## Què fa
 
 - **Índex de 700 reptes** com un tauler de boletes, en quatre tandes: les dues
-  del quadern i les dues de generades, ben marcades. Quan en resols un, la
-  boleta s'omple de color i mostra el teu millor temps.
+  del quadern i les dues de generades, marcades amb l'etiqueta **beta**. Quan
+  en resols un, la boleta s'omple de color i mostra el teu millor temps.
 - **Filtres** per 2D, 3D, pendents o fets, salt directe per número i botó
   *Repte a l'atzar*.
 - **Diagrama de muntatge** dibuixat en SVG a partir del quadern original. Els
@@ -167,6 +167,11 @@ Tres diferències a favor:
   col·locar, de 2 a 10, amb una corba pensada perquè n'hi hagi de tots els
   gustos. El quadern es concentra a 4–6 peces i no segueix cap ordre.
 - **Els 3D es paren drets.** Cap bola del diagrama no queda penjada a l'aire.
+
+Van marcades amb una etiqueta **beta** taronja, tant al bloc de l'índex com
+dins del repte: les ha comprovades el resolutor una a una, però no les ha jugat
+ningú, i el criteri per triar-les és nostre i no del fabricant. Si te'n trobes
+cap de rara, ja saps d'on ve.
 
 La tercera cal explicar-la. La piràmide té gravetat: una peça a les capes de
 dalt no s'aguanta si no hi ha res a sota, i un diagrama que demani sostenir-la
