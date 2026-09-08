@@ -49,6 +49,7 @@
       <button type="button" data-filter="fav"  aria-pressed="false">★ Favorits</button>
       <button type="button" data-filter="book" aria-pressed="false">Del quadern</button>
       <button type="button" data-filter="gen"  aria-pressed="false">Nous</button>
+      <button type="button" data-filter="rival" aria-pressed="false" hidden>Em guanyen</button>
     </div>
     <div class="controls__right">
       <label class="jump">
@@ -68,6 +69,11 @@
       <button type="button" data-diff="mid"  aria-pressed="false">5–6</button>
       <button type="button" data-diff="hard" aria-pressed="false">7 o més</button>
     </div>
+    <p class="dotkey" id="dotkey" hidden>
+      <span><i class="rivaldot is-lead"></i>Hi manes</span>
+      <span><i class="rivaldot is-behind"></i>Et guanyen</span>
+      <span><i class="rivaldot is-open"></i>No l'has jugat</span>
+    </p>
     <p class="ringkey">
       <span class="ringkey__ramp" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
       Anell més clar, més peces per col·locar
@@ -98,6 +104,18 @@
         <button type="button" data-n="3" aria-pressed="false">3</button>
         <button type="button" data-n="5" class="is-on" aria-pressed="true">5</button>
         <button type="button" data-n="10" aria-pressed="false">10</button>
+      </div>
+      <div class="chips" id="sessiondim" role="group" aria-label="Quin tipus de repte">
+        <span class="chips__label">Tipus</span>
+        <button type="button" data-dim="2d"  aria-pressed="false">2D</button>
+        <button type="button" data-dim="3d"  aria-pressed="false">3D</button>
+        <button type="button" data-dim="mix" class="is-on" aria-pressed="true">Mixt</button>
+      </div>
+      <div class="chips" id="sessionorigin" role="group" aria-label="Quins reptes hi entren">
+        <span class="chips__label">Inclou</span>
+        <button type="button" data-origin="book" aria-pressed="false">Del quadern</button>
+        <button type="button" data-origin="gen"  aria-pressed="false">Nous</button>
+        <button type="button" data-origin="all"  class="is-on" aria-pressed="true">Tots</button>
       </div>
       <p class="dlg__pool" id="sessionpool"></p>
       <div class="dlg__actions">
@@ -208,7 +226,7 @@
       </section>
 
       <section class="rivals" id="rivals" hidden>
-        <h3>Com va la colla en aquest repte</h3>
+        <h3>Com van els altres en aquest repte</h3>
         <ol class="rivals__list" id="rivals-list"></ol>
       </section>
 
@@ -237,7 +255,7 @@
     <button type="button" id="boardback" class="btn btn--ghost">&larr;&nbsp;Índex</button>
     <button type="button" id="boardsync" class="btn btn--ghost">Actualitza</button>
   </div>
-  <h2 class="stats__title">La colla</h2>
+  <h2 class="stats__title">Classificació</h2>
   <div id="boardbody"></div>
 </div>
 

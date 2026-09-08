@@ -21,10 +21,18 @@ fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
 - **Entrada manual** del temps si has fet servir el cronòmetre del joc.
 - **Historial** per repte amb el millor temps destacat i un minigràfic de com hi
   vas evolucionant, i exportació/importació en JSON.
-- **Mode sessió**: 3, 5 o 10 reptes seguits triats a l'atzar d'entre els que
-  tens filtrats, amb el total en marxa, l'opció de saltar-ne un i un resum al
-  final que compara cada temps amb el teu rècord anterior. Si tanques la pàgina
-  a mitges, la sessió t'espera.
+- **Mode sessió**: 3, 5 o 10 reptes seguits, amb el total en marxa, l'opció de
+  saltar-ne un i un resum al final que compara cada temps amb el teu rècord
+  anterior. Tries si els vols en 2D, en 3D o mesclats, i si hi entren només els
+  del quadern, només els nous o tots; la resta de filtres que tingues posats a
+  l'índex (dificultat, favorits, pendents) continuen comptant, i el diàleg et
+  diu quants reptes queden. Si tanques la pàgina a mitges, la sessió t'espera.
+- **Com vas contra els altres**: si jugueu amb compte compartit, cada boleta de
+  l'índex porta un punt que diu com hi estàs: daurat si hi tens el millor temps
+  de tots, taronja si algú n'és més ràpid i gris si algú l'ha jugat i tu encara
+  no. Els reptes que no ha tocat ningú més es queden sense punt. El filtre
+  **Em guanyen** els aïlla tots dos d'un colp: és la llista del que et falta per
+  passar-los al davant, i pots engegar-hi una sessió directament.
 - **Pistes**: si t'encalles, toca una peça i te la dibuixa al lloc que li toca,
   amb contorn de punts perquè no la confonguis amb el diagrama original. També
   pots demanar-ne una i prou (comença per les peces amb menys llocs possibles)
@@ -55,7 +63,7 @@ s'envia res enlloc i la web no fa cap petició fora del seu propi domini.
 
 Les vistes tenen adreça pròpia: `#147` obre el repte 147, `#stats` les
 estadístiques, `#sessio` el resum de l'última sessió, `#classificacio` la de la
-colla i `#invitacions` el panell per convidar gent.
+classificació i `#invitacions` el panell per convidar gent.
 
 ## Fer-la anar en local
 
@@ -82,7 +90,8 @@ sols: no hi ha conflictes a resoldre ni s'esborra res per haver jugat en dos
 llocs. Si esborres un temps, s'esborra a tot arreu.
 
 De propina, hi ha una classificació compartida amb el millor temps de cada
-jugador a cada repte, tant a la vista general com al costat de cada repte.
+jugador a cada repte: a la vista general, al costat de cada repte, i resumida a
+cada boleta de l'índex amb el punt de color que s'explica més amunt.
 
 **S'hi entra només amb invitació.** No hi ha cap formulari de registre: tu
 crees una invitació des de `#invitacions` (que et demana la clau

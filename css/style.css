@@ -12,6 +12,7 @@
   --lime:#98D320;       /* fet / rècord */
   --magenta:#F03BA6;    /* alerta */
   --amber:#F79806;      /* provisional: el taronja de la peça A */
+  --gold:#F5C518;       /* hi tens el millor temps de tots */
 
   --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
@@ -106,7 +107,7 @@ button{font:inherit;color:inherit}
 .btn--big{padding:.8em 1.6em;font-size:1.02rem}
 .btn[disabled]{cursor:not-allowed;background:var(--hole);color:#6E635E;border-color:transparent}
 
-/* ---------- segona fila: dificultat i llegenda ---------- */
+/* ---------- segona fila: dificultat i llegendes ---------- */
 .subcontrols{
   display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;
   margin:-4px 0 var(--gap)
@@ -161,6 +162,22 @@ button{font:inherit;color:inherit}
   content:"★";position:absolute;top:-2px;right:-1px;font-size:.62rem;line-height:1;
   color:var(--magenta);text-shadow:0 0 3px var(--ink);pointer-events:none
 }
+/* estat de competició. Va a l'esquerra perquè l'estrella de favorit ja ocupa
+   la dreta, i amb vora fosca perquè es veja també sobre una boleta de color. */
+.rivaldot{
+  width:7px;height:7px;border-radius:50%;display:inline-block;flex:none;
+  box-shadow:0 0 0 1.5px var(--ink)
+}
+.rivaldot.is-lead{background:var(--gold)}
+.rivaldot.is-behind{background:var(--amber)}
+.rivaldot.is-open{background:#8A7F78}
+.bead .rivaldot{position:absolute;top:1px;left:1px;pointer-events:none}
+.dotkey{
+  display:flex;flex-wrap:wrap;gap:.2em 1.1em;
+  font-size:.76rem;color:var(--chalk-dim)
+}
+.dotkey span{display:flex;align-items:center;gap:.45em}
+
 .bead__time{
   position:absolute;inset:auto 0 -1.35em 0;font-size:.58rem;color:var(--chalk-dim);
   text-align:center;pointer-events:none
@@ -395,7 +412,7 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 .times__del:hover{color:var(--magenta)}
 .times__empty{color:var(--chalk-dim);font-size:.9rem}
 
-/* ---------- la colla ---------- */
+/* ---------- els altres jugadors ---------- */
 .masthead__links{display:flex;gap:16px;flex-wrap:wrap}
 .whoami{color:var(--chalk-dim);font-size:.82rem}
 .whoami b{color:var(--lime);font-weight:600}

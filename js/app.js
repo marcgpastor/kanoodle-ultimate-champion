@@ -222,19 +222,47 @@ const ringColor = d => `color-mix(in srgb, #F4EFE9 ${4 + d * 8}%, #3D3532)`;
 const BEADS = ['#00ADEF', '#98D320', '#F0E406', '#F03BA6', '#F79806', '#7ED5E5',
                '#EF3338', '#F694CF', '#5E54AE', '#DAEE94', '#C8C0B6', '#FFFFFF'];
 
-function passes(n) {
+// Els filtres que no toquen ni la dimensió ni l'origen. Van a part perquè el
+// mode sessió mana en aquests dos eixos i necessita aplicar la resta pel seu
+// compte: si no, demanar-hi 3D amb el filtre 2D posat no donaria cap repte.
+function passesRest(n) {
   if (diffFilter !== 'all') {
     const [lo, hi] = DIFF_BANDS[diffFilter];
     if (DIFF[n] < lo || DIFF[n] > hi) return false;
   }
+  if (filter === 'done')  return done(n);
+  if (filter === 'todo')  return !done(n);
+  if (filter === 'fav')   return fav(n);
+  if (filter === 'rival') { const st = rivalState(n); return st === 'behind' || st === 'open'; }
+  return true;
+}
+
+function passes(n) {
+  if (!passesRest(n)) return false;
   if (filter === '2d')   return !is3D(n);
   if (filter === '3d')   return is3D(n);
-  if (filter === 'done') return done(n);
-  if (filter === 'todo') return !done(n);
-  if (filter === 'fav')  return fav(n);
   if (filter === 'book') return !isNew(n);
   if (filter === 'gen')  return isNew(n);
   return true;
+}
+
+/** el conjunt d'una sessió: els xips del diàleg manen en dimensió i origen */
+function sessionPasses(n, dim, origin) {
+  if (!passesRest(n)) return false;
+  if (dim === '2d' && is3D(n)) return false;
+  if (dim === '3d' && !is3D(n)) return false;
+  if (origin === 'book' && isNew(n)) return false;
+  if (origin === 'gen' && !isNew(n)) return false;
+  return true;
+}
+
+function setFilter(f) {
+  filter = f;
+  $$('.segmented button').forEach(x => {
+    const on = x.dataset.filter === f;
+    x.classList.toggle('is-on', on);
+    x.setAttribute('aria-pressed', String(on));
+  });
 }
 
 function renderIndex() {
@@ -272,6 +300,8 @@ function renderIndex() {
       ? 'Cap repte encaixa amb aquests dos filtres alhora.'
       : filter === 'gen'
         ? 'Cap repte nou amb aquest filtre.'
+      : filter === 'rival'
+        ? 'No et guanyen enlloc: tens el millor temps de tots els reptes que ha jugat algú altre.'
       : filter === 'fav'
       ? 'Cap favorit encara. Obre un repte i toca l’estrella per tenir-lo a mà.'
       : filter === 'done'
@@ -311,10 +341,17 @@ function bead(n) {
   } else {
     b.style.borderColor = ringColor(d);
   }
-  b.title = `Repte ${n} · ${d} ${d === 1 ? 'peça' : 'peces'} per col·locar`;
+  const st = rivalState(n);
+  if (st) {
+    const dot = el('i', 'rivaldot ' + RIVAL_DOT[st]);
+    dot.setAttribute('aria-hidden', 'true');
+    b.append(dot);
+  }
+  const note = rivalNote(n, st);
+  b.title = `Repte ${n} · ${d} ${d === 1 ? 'peça' : 'peces'} per col·locar` + note;
   b.setAttribute('aria-label',
     `Repte ${n}, ${d} ${d === 1 ? 'peça' : 'peces'} per col·locar` +
-    `${t !== null ? `, millor temps ${fmt(t)}` : ', pendent'}${fav(n) ? ', favorit' : ''}`);
+    `${t !== null ? `, millor temps ${fmt(t)}` : ', pendent'}${fav(n) ? ', favorit' : ''}${note}`);
   return b;
 }
 
@@ -778,13 +815,19 @@ function toplist(items) {
   return ol;
 }
 
-/* ---------------- la colla ---------------- */
+/* ---------------- els altres jugadors ---------------- */
 
 const compEnabled = () => !!API && API.enabled();
 const playing = () => compEnabled() && API.me();
 
+// Indexar el marcador costa, i l'índex el consulta una vegada per boleta: el
+// desem fet i el refem només quan en baixa un de nou.
+let boardIdx = null;
+const boardIndex = () => boardIdx;
+const refreshBoard = () => { boardIdx = buildBoardIndex(); };
+
 /** la classificació baixada, indexada per repte i per jugador */
-function boardIndex() {
+function buildBoardIndex() {
   const b = compEnabled() ? API.board() : null;
   if (!b) return null;
   const names = new Map(b.players);
@@ -800,6 +843,42 @@ function boardIndex() {
   return { names, byPuzzle, byPlayer, at: b.at };
 }
 
+/**
+ * Com et va aquest repte contra els altres:
+ *   'lead'    hi tens el millor temps de tots
+ *   'behind'  l'has jugat, però algú és més ràpid
+ *   'open'    algú l'ha jugat i tu encara no
+ *   null      no hi ha ningú amb qui comparar-te (o no tens compte)
+ * Els reptes que no ha tocat ningú més es queden a null a posta: si no, un
+ * tauler acabat de començar s'ompliria de punts que no volen dir res.
+ */
+function rivalState(n) {
+  const idx = boardIndex();
+  const p = playing();
+  if (!p || !idx) return null;
+  const rows = idx.byPuzzle.get(n);
+  if (!rows) return null;
+  const others = rows.filter(([pid]) => pid !== p.id);
+  if (!others.length) return null;
+  const mine = best(n);                    // el d'aquest navegador, que va més al dia
+  if (mine === null) return 'open';
+  return mine <= others[0][1] ? 'lead' : 'behind';
+}
+
+const RIVAL_DOT = { lead: 'is-lead', behind: 'is-behind', open: 'is-open' };
+
+/** com es llegeix l'estat en veu alta, per al títol i el lector de pantalla */
+function rivalNote(n, st) {
+  if (!st) return '';
+  if (st === 'lead') return ', hi tens el millor temps';
+  const idx = boardIndex();
+  const [pid, ms] = idx.byPuzzle.get(n)[0];
+  const who = idx.names.get(pid) || 'algú';
+  return st === 'open'
+    ? `, encara no l’has jugat i ${who} el té en ${fmt(ms)}`
+    : `, el més ràpid és ${who} amb ${fmt(ms)}`;
+}
+
 let syncing = false, syncQueued = null;
 
 /** puja el que hi hagi de nou i, si cal, torna a baixar tot el teu historial */
@@ -810,8 +889,10 @@ async function syncNow(opts = {}) {
   syncing = true;
   try {
     const res = await API.sync({ store, favs: [...favs], sessions: sessionLog }, full);
+    refreshBoard();          // el marcador baixa sempre, no només amb `full`
     if (res && full) applyRemote(res);
     paintWhoami();
+    if (!$('#view-index').hidden) renderIndex();
     if (current !== null) { paintRivals(); renderTimes(); }
     if (!$('#view-board').hidden) renderBoard();
     if (loud) toast('Tot al dia.');
@@ -859,10 +940,7 @@ function applyRemote(res) {
     }
   }
 
-  if (changed) {
-    if (current !== null) paintFav();
-    if (!$('#view-index').hidden) renderIndex();
-  }
+  if (changed && current !== null) paintFav();
   return changed;
 }
 
@@ -871,6 +949,9 @@ function paintWhoami() {
   const p = playing();
   $('#toboard').hidden = !p;
   $('#adminlink').hidden = !compEnabled();
+  $('[data-filter="rival"]').hidden = !p;
+  $('#dotkey').hidden = !p;
+  if (!p && filter === 'rival') setFilter('all');
   if (!compEnabled()) { box.hidden = true; return; }
   box.hidden = false;
   box.textContent = '';
@@ -883,12 +964,12 @@ function paintWhoami() {
   out.type = 'button';
   out.onclick = () => {
     if (!confirm('Vols sortir de la classificació? Els teus temps es queden en aquest navegador.')) return;
-    API.logout(); paintWhoami(); renderIndex();
+    API.logout(); refreshBoard(); paintWhoami(); renderIndex();
   };
   box.append(out);
 }
 
-/** el panell de rivals dins d'un repte */
+/** com van els altres jugadors en aquest repte */
 function paintRivals() {
   const box = $('#rivals');
   const idx = boardIndex();
@@ -962,7 +1043,7 @@ function renderBoard() {
   });
   table.append(body);
   card.append(el('h3', null, 'Classificació general'), table,
-    el('p', 'hint', '«Millors» és a quants reptes tens el temps més ràpid de la colla.'));
+    el('p', 'hint', '«Millors» és a quants reptes tens el temps més ràpid de tots.'));
   host.append(card);
 
   if (idx.at) host.append(el('p', 'hint', 'Última actualització: ' +
@@ -1219,9 +1300,9 @@ const revealNext = () => withSolution(current, sol => {
 const sessionLevel = () => session ? session.ids[session.idx] : null;
 const sessionTotal = () => session.results.reduce((a, r) => a + (r.t || 0), 0);
 
-function startSession(count) {
+function startSession(count, dim, origin) {
   const pool = [];
-  for (let n = 1; n <= LAST; n++) if (passes(n)) pool.push(n);
+  for (let n = 1; n <= LAST; n++) if (sessionPasses(n, dim, origin)) pool.push(n);
   if (pool.length < 2) { toast('Amb aquests filtres no hi ha prou reptes.'); return; }
   for (let i = pool.length - 1; i > 0; i--) {          // barreja de Fisher–Yates
     const k = Math.floor(Math.random() * (i + 1));
@@ -1366,7 +1447,7 @@ function closeLevel() {
 
 function openBoard(push = true) {
   if (current !== null) { stopTimer(); current = null; }
-  document.title = 'La colla — Kanoodle Ultimate Champion';
+  document.title = 'Classificació — Kanoodle Ultimate Champion';
   renderBoard();
   show('board');
   if (push && location.hash !== '#classificacio') location.hash = '#classificacio';
@@ -1454,12 +1535,7 @@ function wire() {
   });
 
   $$('.segmented button').forEach(b => b.onclick = () => {
-    $$('.segmented button').forEach(x => {
-      const on = x === b;
-      x.classList.toggle('is-on', on);
-      x.setAttribute('aria-pressed', String(on));
-    });
-    filter = b.dataset.filter;
+    setFilter(b.dataset.filter);
     renderIndex();
   });
 
@@ -1478,31 +1554,68 @@ function wire() {
   };
 
   const dlg = $('#sessiondlg');
-  let sessionCount = 5;
+  let sessionCount = 5, sessionDim = 'mix', sessionOrigin = 'all';
+
+  const pickChip = (host, btn) => $$('button', host).forEach(x => {
+    const on = x === btn;
+    x.classList.toggle('is-on', on);
+    x.setAttribute('aria-pressed', String(on));
+  });
+
+  // Els xips del diàleg manen en dimensió i origen, però els altres filtres de
+  // l'índex continuen comptant: val més dir-ho que no que el nombre no quadri.
+  const REST_NAME = { done: 'els que ja has fet', todo: 'els pendents',
+                      fav: 'els favorits', rival: 'aquells on et guanyen' };
+  const BAND_NAME = { easy: '1–4 peces', mid: '5–6 peces', hard: '7 peces o més' };
+  const restNote = () => {
+    const on = [REST_NAME[filter], BAND_NAME[diffFilter]].filter(Boolean);
+    return on.length ? ' Encara s’hi apliquen els filtres de l’índex: ' + on.join(' i ') + '.' : '';
+  };
+
   const paintPool = () => {
     let pool = 0;
-    for (let n = 1; n <= LAST; n++) if (passes(n)) pool++;
-    $('#sessionpool').innerHTML = '';
-    $('#sessionpool').append(
-      document.createTextNode('Es trien a l’atzar d’entre els '),
-      el('b', null, String(pool)),
-      document.createTextNode(pool === 1 ? ' repte que tens filtrat.' : ' reptes que tens filtrats.'));
+    for (let n = 1; n <= LAST; n++) if (sessionPasses(n, sessionDim, sessionOrigin)) pool++;
+    const note = $('#sessionpool');
+    note.textContent = '';
+    if (pool < 2) {
+      note.textContent = 'Amb aquests filtres no hi ha prou reptes per fer una sessió.' + restNote();
+    } else {
+      note.append(
+        document.createTextNode('Es trien a l’atzar d’entre els '),
+        el('b', null, String(pool)),
+        document.createTextNode(' reptes que hi encaixen.' + restNote()));
+    }
+    $('#sessiongo').disabled = pool < 2;
   };
+
   $('#startsession').onclick = () => {
     if (session) return openLevel(sessionLevel());
+    sessionDim    = filter === '2d' ? '2d' : filter === '3d' ? '3d' : 'mix';
+    sessionOrigin = filter === 'book' ? 'book' : filter === 'gen' ? 'gen' : 'all';
+    pickChip($('#sessiondim'), $(`#sessiondim [data-dim="${sessionDim}"]`));
+    pickChip($('#sessionorigin'), $(`#sessionorigin [data-origin="${sessionOrigin}"]`));
     paintPool();
     dlg.showModal();
   };
   $('#sessioncancel').onclick = () => dlg.close();
   $$('#sessioncount button').forEach(b => b.onclick = () => {
-    $$('#sessioncount button').forEach(x => {
-      const on = x === b;
-      x.classList.toggle('is-on', on);
-      x.setAttribute('aria-pressed', String(on));
-    });
+    pickChip($('#sessioncount'), b);
     sessionCount = Number(b.dataset.n);
   });
-  $('#sessiongo').onclick = () => { dlg.close(); startSession(sessionCount); };
+  $$('#sessiondim button').forEach(b => b.onclick = () => {
+    pickChip($('#sessiondim'), b);
+    sessionDim = b.dataset.dim;
+    paintPool();
+  });
+  $$('#sessionorigin button').forEach(b => b.onclick = () => {
+    pickChip($('#sessionorigin'), b);
+    sessionOrigin = b.dataset.origin;
+    paintPool();
+  });
+  $('#sessiongo').onclick = () => {
+    dlg.close();
+    startSession(sessionCount, sessionDim, sessionOrigin);
+  };
 
   $('#lv-diagram').addEventListener('click', e => {
     const g = e.target.closest && e.target.closest('[data-ghost]');
@@ -1726,6 +1839,7 @@ fetch('data/puzzles.json')
     ];
     LAST = Math.max(...SETS.map(s => s.to));
     computeDifficulty();
+    refreshBoard();
 
     wire();
     paintAutoTarget();
