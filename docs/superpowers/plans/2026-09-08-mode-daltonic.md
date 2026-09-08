@@ -366,7 +366,7 @@ comprovava res ningú: els filtres, el mode sessió i les pistes s'havien de
 provar a mà cada vegada. Abans de posar-me a canviar colors per tota
 l'aplicació, val més tenir el comportament d'avui tancat.
 
-53 comprovacions sobre el lloc de veres en un Chromium: els quatre estats dels
+48 comprovacions sobre el lloc de veres en un Chromium: els quatre estats dels
 punts de competició, que el filtre deixa exactament els reptes amb feina, els
 conjunts del diàleg de sessió, els comptes de tots els filtres de sempre, i que
 els buits del tauler i la llista de peces mouen la mateixa palanca en 2D i en
@@ -480,7 +480,7 @@ que hi havia escrits a mà passen a derivar-se amb `color-mix`, de manera que
 seguiran la variable soles.
 
 Cap canvi de comportament ni d'aspecte: els mateixos colors, dits d'una altra
-manera. Les 53 comprovacions no es mouen.
+manera. Les 48 comprovacions no es mouen.
 MSG
 ```
 
@@ -569,7 +569,7 @@ mode: `getComputedStyle` no és gratis i els gràfics en demanen uns quants per
 pintada. Els grisos d'eixos i graella es queden escrits, que són neutres i
 valen igual per a tots dos modes.
 
-Mateixos colors que abans. Les 53 comprovacions de sempre no es mouen, i n'hi
+Mateixos colors que abans. Les 48 comprovacions de sempre no es mouen, i n'hi
 ha dues de noves que miren que les barres de les estadístiques surten pintades
 de veres.
 MSG
