@@ -49,6 +49,17 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('la llegenda es veu amb compte', await page.isVisible('#dotkey'), true);
   check('el xip de competició es veu amb compte', await page.isVisible('[data-filter="rival"]'), true);
 
+  const vells = ['Hi manes', 'Et guanyen', 'Em guanyen', 'hi tens el millor temps',
+                 'et guanyen', 'No et guanyen enlloc'];
+  check('cap text vell enlloc del DOM', await page.evaluate(mots => {
+    const tot = document.body.innerHTML;
+    return mots.filter(m => tot.includes(m));
+  }, vells), []);
+  check('la llegenda es diu pel fet', await page.$$eval('#dotkey span', ss => ss.map(s => s.textContent)),
+    ['El millor temps és teu', 'Hi ha temps més ràpids', 'Encara no l’has jugat']);
+  check('el xip diu què en pots fer',
+    await page.$eval('[data-filter="rival"]', b => b.textContent), 'Per millorar');
+
   await tap(page, '[data-filter="rival"]');
   const shown = await page.evaluate(() =>
     [...document.querySelectorAll('.bead')].map(b => Number(b.dataset.n)).sort((a, b) => a - b));

@@ -357,7 +357,7 @@ function renderIndex() {
       : filter === 'gen'
         ? 'Cap repte nou amb aquest filtre.'
       : filter === 'rival'
-        ? 'No et guanyen enlloc: tens el millor temps de tots els reptes que ha jugat algú altre.'
+        ? 'No hi ha cap repte amb un temps més ràpid que el teu.'
       : filter === 'fav'
       ? 'Cap favorit encara. Obre un repte i toca l’estrella per tenir-lo a mà.'
       : filter === 'done'
@@ -901,8 +901,8 @@ function buildBoardIndex() {
 
 /**
  * Com et va aquest repte contra els altres:
- *   'lead'    hi tens el millor temps de tots
- *   'behind'  l'has jugat, però algú és més ràpid
+ *   'lead'    el millor temps de tots és el teu
+ *   'behind'  l'has jugat, però n'hi ha de més ràpids
  *   'open'    algú l'ha jugat i tu encara no
  *   null      no hi ha ningú amb qui comparar-te (o no tens compte)
  * Els reptes que no ha tocat ningú més es queden a null a posta: si no, un
@@ -926,13 +926,13 @@ const RIVAL_DOT = { lead: 'is-lead', behind: 'is-behind', open: 'is-open' };
 /** com es llegeix l'estat en veu alta, per al títol i el lector de pantalla */
 function rivalNote(n, st) {
   if (!st) return '';
-  if (st === 'lead') return ', hi tens el millor temps';
+  if (st === 'lead') return ', el millor temps és el teu';
   const idx = boardIndex();
   const [pid, ms] = idx.byPuzzle.get(n)[0];
   const who = idx.names.get(pid) || 'algú';
   return st === 'open'
-    ? `, encara no l’has jugat i ${who} el té en ${fmt(ms)}`
-    : `, el més ràpid és ${who} amb ${fmt(ms)}`;
+    ? `, encara no l’has jugat; el d’${who} és ${fmt(ms)}`
+    : `, el temps més ràpid és d’${who}: ${fmt(ms)}`;
 }
 
 let syncing = false, syncQueued = null;
@@ -1642,7 +1642,7 @@ function wire() {
   // Els xips del diàleg manen en dimensió i origen, però els altres filtres de
   // l'índex continuen comptant: val més dir-ho que no que el nombre no quadri.
   const REST_NAME = { done: 'els que ja has fet', todo: 'els pendents',
-                      fav: 'els favorits', rival: 'aquells on et guanyen' };
+                      fav: 'els favorits', rival: 'aquells amb un temps més ràpid que el teu' };
   const BAND_NAME = { easy: '1–4 peces', mid: '5–6 peces', hard: '7 peces o més' };
   const restNote = () => {
     const on = [REST_NAME[filter], BAND_NAME[diffFilter]].filter(Boolean);

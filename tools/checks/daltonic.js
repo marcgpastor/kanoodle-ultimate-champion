@@ -76,6 +76,26 @@ module.exports = async function ({ page, check, tap, seed }) {
   await page.waitForSelector('#lv-spark polyline');
   check('sparkline: color normal abans de canviar de mode',
     await page.$eval('#lv-spark polyline', e => e.getAttribute('stroke').toUpperCase()), '#00ADEF');
+
+  // La lletra de la peça és el canal que no depèn del color.
+  const letterOn = piece => page.evaluate(L => {
+    const t = [...document.querySelectorAll('#lv-pieces svg text')]
+      .find(x => x.textContent === L);
+    if (!t) return null;
+    const s = getComputedStyle(t);
+    return {
+      fill: t.getAttribute('fill'), weight: s.fontWeight,
+      stroke: t.getAttribute('stroke'), paintOrder: t.getAttribute('paint-order'),
+    };
+  }, piece);
+
+  // encara en mode normal: la negreta i el contorn només han d'aparèixer en
+  // mode daltònic, no sempre
+  const normalC = await letterOn('C');
+  check('normal: la lletra no va en negreta', normalC && normalC.weight, '600');
+  check('normal: sense stroke ni paint-order',
+    normalC && [normalC.stroke, normalC.paintOrder], [null, null]);
+
   // #cbmode viu dins #view-index, que és `hidden` mentre hi ha un nivell obert:
   // no hi ha manera de clicar-lo de veres des d'ací amb el ratolí. Però és
   // exactament l'escenari que calia cobrir —que `setPalette()` es cride amb
@@ -122,20 +142,14 @@ module.exports = async function ({ page, check, tap, seed }) {
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: false });
   await cdp.detach();
 
-  // La lletra de la peça és el canal que no depèn del color.
-  const letterOn = (n, piece) => page.evaluate(([num, L]) => {
-    const t = [...document.querySelectorAll('#lv-pieces svg text')]
-      .find(x => x.textContent === L);
-    if (!t) return null;
-    const s = getComputedStyle(t);
-    return { fill: t.getAttribute('fill'), weight: s.fontWeight };
-  }, [n, piece]);
-
   await page.goto(URL + '/#1');
   await page.waitForSelector('#lv-pieces svg');
-  const clara = await letterOn(1, 'C');     // peça C, blau cel: lletra fosca
+  const clara = await letterOn('C');     // peça C, blau cel: lletra fosca
   check('sobre una peça clara, lletra fosca', clara && clara.fill, '#16110F');
-  const fosca = await letterOn(1, 'J');     // peça J, indi: lletra clara
+  const fosca = await letterOn('J');     // peça J, indi: lletra clara
   check('sobre una peça fosca, lletra clara', fosca && fosca.fill, '#F4EFE9');
   check('en mode daltònic la lletra va en negreta', fosca && fosca.weight, '700');
+  check('en mode daltònic hi ha contorn: paint-order', fosca && fosca.paintOrder, 'stroke');
+  check('en mode daltònic el contorn és el contrari del farciment',
+    fosca && fosca.stroke, '#16110F');
 };

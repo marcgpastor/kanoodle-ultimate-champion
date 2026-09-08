@@ -18,7 +18,7 @@ const { chromium } = require('playwright-core');
 
 const BASE = process.env.KANOODLE_URL || 'http://localhost:8123';
 
-/** Chromium headless (prefuit) o complet: el que instal·la Playwright, o el que digui KANOODLE_CHROME.
+/** Chromium headless (preferit) o complet: el que instal·la Playwright, o el que digui KANOODLE_CHROME.
     Preferim chrome-headless-shell perquè aquesta màquina no pinta fotogrames;
     el full Chromium és només fallback. Escollem la versió més nova per número. */
 function chromeHeadlessPath() {
