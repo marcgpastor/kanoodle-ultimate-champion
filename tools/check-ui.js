@@ -108,7 +108,9 @@ async function main() {
   });
   await page.goto(BASE + '/');
 
-  for (const suite of [require('./checks/competicio'), require('./checks/pistes')]) {
+  for (const suite of [require('./checks/competicio'),
+                       require('./checks/pistes'),
+                       require('./checks/daltonic')]) {
     await suite({ page, check, tap, seed });
   }
 

@@ -32,6 +32,22 @@
   --radius:14px;
 }
 
+/* Mode daltònic, pensat per al roig-verd (deuteranopia i protanopia). Blau i
+   taronja és el parell que millor s'hi distingeix; quan n'hi ha d'haver tres
+   alhora, el tercer és neutre o es diferencia per claredat i no per to. Els 12
+   colors de peça no hi entren: el diagrama s'ha de continuar assemblant a la
+   capsa que tens damunt la taula. */
+html[data-palette="daltonic"]{
+  --good:#F0E442;
+  --alert:#D55E00;
+  --dim-2d:#56B4E9;
+  --dim-3d:#E69F00;
+  --chart:#E69F00;
+  --rival-lead:#56B4E9;
+  --rival-behind:#D55E00;
+  --rival-open:#C8C0B6;
+}
+
 *,*::before,*::after{box-sizing:border-box}
 /* els nostres display:flex guanyarien a l'atribut hidden si no fos per això */
 [hidden]{display:none !important}

@@ -2,6 +2,13 @@
 (() => {
 'use strict';
 
+// Abans que res: si no, qui té el mode encés veuria els colors normals mentre
+// es baixa puzzles.json, que és quan es llig `prefs`. localStorage és síncron.
+try {
+  const saved = JSON.parse(localStorage.getItem('kanoodle.prefs.v1') || '{}');
+  if (saved && saved.cb) document.documentElement.dataset.palette = 'daltonic';
+} catch {}
+
 const TKEY = 'kanoodle.times.v1';
 const FKEY = 'kanoodle.favs.v1';
 const PKEY = 'kanoodle.prefs.v1';
@@ -43,7 +50,7 @@ const API = root_api();
 function root_api() { return typeof KanoodleAPI !== 'undefined' ? KanoodleAPI : null; }
 let shownHints = new Set();  // lletres de les peces revelades ara mateix
 let sessionLog = [];         // sessions acabades
-let prefs = { mode: 'up', target: 180000, sound: true, autoTarget: true };
+let prefs = { mode: 'up', target: 180000, sound: true, autoTarget: true, cb: false };
 
 const saveTimes = () => write(TKEY, store);
 const saveFavs  = () => write(FKEY, [...favs]);
@@ -989,6 +996,17 @@ function paintWhoami() {
   box.append(out);
 }
 
+/** encén o apaga el mode daltònic i torna a pintar el que es veja */
+function setPalette(on) {
+  if (on) document.documentElement.dataset.palette = 'daltonic';
+  else delete document.documentElement.dataset.palette;
+  $('#cbmode').setAttribute('aria-pressed', String(!!on));
+  forgetColors();                       // el JS té colors desats que ja no valen
+  if (!$('#view-index').hidden) renderIndex();
+  if (!$('#view-stats').hidden) renderStats();
+  if (current !== null) paintHints();   // el diagrama i la llista de peces
+}
+
 /** com van els altres jugadors en aquest repte */
 function paintRivals() {
   const box = $('#rivals');
@@ -1719,6 +1737,11 @@ function wire() {
     $('#sound').textContent = prefs.sound ? '🔊 So activat' : '🔇 So desactivat';
     if (prefs.sound) beep();
   };
+  $('#cbmode').onclick = () => {
+    prefs.cb = !prefs.cb;
+    savePrefs();
+    setPalette(prefs.cb);
+  };
 
   $('#manualform').onsubmit = e => {
     e.preventDefault();
@@ -1862,7 +1885,7 @@ fetch('data/puzzles.json')
     DATA  = d;
     store = read(TKEY, {});
     favs  = new Set((read(FKEY, []) || []).map(Number));
-    prefs = Object.assign({ mode: 'up', target: 180000, sound: true, autoTarget: true }, read(PKEY, {}));
+    prefs = Object.assign({ mode: 'up', target: 180000, sound: true, autoTarget: true, cb: false }, read(PKEY, {}));
     session    = read(SKEY, null);
     sessionLog = read(HKEY, []) || [];
     if (session && (!Array.isArray(session.ids) || session.idx >= session.ids.length)) session = null;
@@ -1878,6 +1901,7 @@ fetch('data/puzzles.json')
     paintAutoTarget();
     $('#sound').setAttribute('aria-pressed', String(prefs.sound));
     $('#sound').textContent = prefs.sound ? '🔊 So activat' : '🔇 So desactivat';
+    setPalette(prefs.cb);
     renderPresets();
     setMode(prefs.mode);
     paintWhoami();
