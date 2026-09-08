@@ -389,7 +389,7 @@ MSG
 Cap canvi de comportament: en acabar, la pàgina s'ha de veure exactament igual.
 
 **Files:**
-- Modify: `css/style.css:4-16` (bloc `:root`), i els 27 usos de `var(--lime)` i `var(--magenta)`
+- Modify: `css/style.css:4-16` (bloc `:root`), i els 28 usos de `var(--lime)` i `var(--magenta)`
 
 **Interfaces:**
 - Consumes: res.
@@ -470,7 +470,7 @@ Els colors amb significat es diuen pel que volen dir
 
 `--lime` i `--magenta` no eren dos colors de la paleta: carregaven significat
 per tota la interfície —millors temps, rellotge en marxa, corona, estrella de
-favorit, «Esborra-ho tot», l'avís d'errata—, 27 usos entre les dues. Amb noms
+favorit, «Esborra-ho tot», l'avís d'errata—, 28 usos entre les dues. Amb noms
 de color no es pot canviar la paleta sense que el CSS quede mentint.
 
 Ara hi ha `--good` i `--alert`, més `--dim-2d`, `--dim-3d`, `--chart` i els tres
@@ -480,7 +480,7 @@ que hi havia escrits a mà passen a derivar-se amb `color-mix`, de manera que
 seguiran la variable soles.
 
 Cap canvi de comportament ni d'aspecte: els mateixos colors, dits d'una altra
-manera. Les 48 comprovacions no es mouen.
+manera. El banc de proves no es mou.
 MSG
 ```
 
@@ -569,7 +569,7 @@ mode: `getComputedStyle` no és gratis i els gràfics en demanen uns quants per
 pintada. Els grisos d'eixos i graella es queden escrits, que són neutres i
 valen igual per a tots dos modes.
 
-Mateixos colors que abans. Les 48 comprovacions de sempre no es mouen, i n'hi
+Mateixos colors que abans. Les comprovacions de sempre no es mouen, i n'hi
 ha dues de noves que miren que les barres de les estadístiques surten pintades
 de veres.
 MSG
