@@ -31,8 +31,10 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('daltònic: blau cel', cb['--rival-lead'], '#56B4E9');
   check('daltònic: vermelló', cb['--rival-behind'], '#D55E00');
   check('daltònic: gris', cb['--rival-open'], '#C8C0B6');
+  check('daltònic: el 2D passa a blau cel', cb['--dim-2d'], '#56B4E9');
   check('daltònic: la piràmide passa a taronja', cb['--dim-3d'], '#E69F00');
   check('daltònic: «va bé» passa a groc pàl·lid', cb['--good'], '#F0E442');
+  check('daltònic: el gràfic de barres passa a taronja', cb['--chart'], '#E69F00');
   check('daltònic: l’alerta passa a vermelló', cb['--alert'], '#D55E00');
   check('el cian d’acció no es mou', cb['--cyan'], normal['--cyan']);
 
@@ -62,9 +64,61 @@ module.exports = async function ({ page, check, tap, seed }) {
         .filter(c => mals.includes(c)).length;
     }), 0);
 
+  // el sparkline de temps del nivell (sparkline() a app.js): setPalette() l'ha
+  // de repintar en calent, no només quan renderTimes() es crida per una altra via.
+  // Calia tornar a '/' abans: veníem de '#stats' i el reload de seed() hi hauria
+  // deixat la vista d'estadístiques oberta, amb `.bead` present però amagat.
+  await page.goto(URL + '/');
+  await seed(page, {
+    times: { 1: [{ t: 60000, d: '2026-09-01T10:00:00.000Z' }, { t: 50000, d: '2026-09-02T10:00:00.000Z' }] },
+  });
+  await page.goto(URL + '/#1');
+  await page.waitForSelector('#lv-spark polyline');
+  check('sparkline: color normal abans de canviar de mode',
+    await page.$eval('#lv-spark polyline', e => e.getAttribute('stroke').toUpperCase()), '#00ADEF');
+  // #cbmode viu dins #view-index, que és `hidden` mentre hi ha un nivell obert:
+  // no hi ha manera de clicar-lo de veres des d'ací amb el ratolí. Però és
+  // exactament l'escenari que calia cobrir —que `setPalette()` es cride amb
+  // `current !== null`—, així que forcem el clic sense passar per `tap()`
+  // (que fallaria dient que el botó està tapat, cosa certa però irrellevant ací).
+  await page.$eval('#cbmode', e => e.click());
+  check('sparkline: es repinta en calent quan s’encén el mode',
+    await page.$eval('#lv-spark polyline', e => e.getAttribute('stroke').toUpperCase()), '#56B4E9');
+
   await page.goto(URL + '/');
   await page.waitForSelector('.bead');
   await page.$eval('#cbmode', e => e.scrollIntoView());
   await tap(page, '#cbmode');
   check('es pot tornar arrere', await page.getAttribute('html', 'data-palette'), null);
+
+  // sense parpelleig de veres: cap comprovació de dalt ho pot detectar perquè
+  // totes esperen `.bead`, que només apareix quan puzzles.json ja s'ha
+  // resolt —moment en què l'arrencada ja ha cridat setPalette(prefs.cb) igualment.
+  // Aquí, en canvi, mirem l'atribut MENTRE la petició encara està pendent.
+  //
+  // `page.route()` per si sol no basta: `sw.js` ja té l'origen en caché (les
+  // altres tandes ja han passat per ací) i respon puzzles.json des del Service
+  // Worker sense tocar mai la xarxa, així que la ruta de Playwright no s'arriba
+  // a cridar i la comprovació passaria encara que el fragment no hi fos. Cal
+  // forçar-ho per CDP: xarxa sense caché i sense Service Worker.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.enable');
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+  await cdp.send('Network.setBypassServiceWorker', { bypass: true });
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('kanoodle.prefs.v1', JSON.stringify({ cb: true }));
+  });
+  await page.route('**/data/puzzles.json', async route => {
+    await new Promise(r => setTimeout(r, 1000));
+    await route.continue();
+  });
+  await page.goto(URL + '/');
+  check('sense parpelleig: l’atribut ja hi és mentre puzzles.json encara està pendent',
+    await page.getAttribute('html', 'data-palette'), 'daltonic');
+  await page.waitForSelector('.bead');   // deixa acabar la petició abans de plegar
+  await page.unroute('**/data/puzzles.json');
+  await cdp.send('Network.setBypassServiceWorker', { bypass: false });
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: false });
+  await cdp.detach();
 };

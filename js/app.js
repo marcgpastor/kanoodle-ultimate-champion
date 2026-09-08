@@ -1004,7 +1004,7 @@ function setPalette(on) {
   forgetColors();                       // el JS té colors desats que ja no valen
   if (!$('#view-index').hidden) renderIndex();
   if (!$('#view-stats').hidden) renderStats();
-  if (current !== null) paintHints();   // el diagrama i la llista de peces
+  if (current !== null) { renderTimes(); paintHints(); }   // temps+gràfica, diagrama i llista de peces
 }
 
 /** com van els altres jugadors en aquest repte */
