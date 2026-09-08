@@ -332,7 +332,7 @@ python3 -m http.server 8123 &
 node tools/check-ui.js
 ```
 
-Esperat: **53 comprovacions, 0 fallades.** Si en falla alguna, el banc està mal escrit —el codi d'avui és el bo—; arregleu el banc, no l'aplicació.
+Esperat: **0 fallades** (han de ser unes 48 comprovacions; el nombre exacte el diu el banc i no és el criteri). Si en falla alguna, el banc està mal escrit —el codi d'avui és el bo—; arregleu el banc, no l'aplicació.
 
 - [ ] **Step 7: Documentar-ho al README**
 
@@ -416,6 +416,9 @@ Els tres `--rival-*` conserven de moment els colors d'avui: els canvia la tasca 
 
 - [ ] **Step 2: Apuntar els usos amb significat a les variables noves**
 
+> Els números de línia són d'abans del pas 1, que n'afegeix nou a `:root`.
+> **Manen els selectors**, no els números.
+
 `var(--lime)` → `var(--good)` a: `.scoreboard dd b` (69), `.sessionbar__total` (228), `.dots i.is-done` (236, dues vegades), `.summary__delta.up` (259), `.clock__presets button.is-best` i `.is-best.is-on` (347, 351, 352), `.clock.is-running .clock__time` (364), `.times__best` i `.times__best .times__val` (414, 415), `.whoami b` (423), `.rivals__list li.is-first .rivals__t` (440), `.standings .crown` (453), `.toplist__bar` (465).
 
 `var(--magenta)` → `var(--alert)` a: `.bead.is-fav::after` (163), `.dots i.is-skip` (237), `.fav[aria-pressed="true"]` (279), `.level__note` (291), `.clock.is-over .clock__time` (366), `.times__del:hover` (417), `.whoami button:hover` (428), `.link--danger` (513).
@@ -455,7 +458,7 @@ Aquests estan escrits a mà i han de seguir la variable que els toca. Fer-los de
 node tools/check-ui.js
 ```
 
-Esperat: **53 comprovacions, 0 fallades.**
+Esperat: **0 fallades.**
 
 - [ ] **Step 5: Commit**
 
@@ -545,7 +548,7 @@ A `tools/checks/competicio.js`, al final:
 node tools/check-ui.js
 ```
 
-Esperat: **55 comprovacions, 0 fallades.**
+Esperat: **0 fallades**, amb dues comprovacions més que abans.
 
 - [ ] **Step 5: Commit**
 
@@ -639,7 +642,7 @@ Esborrar `--gold` de `:root`: ja no la fa servir ningú.
 node tools/check-ui.js
 ```
 
-Esperat: **59 comprovacions, 0 fallades.**
+Esperat: **0 fallades**, amb quatre comprovacions més que abans.
 
 - [ ] **Step 5: Commit**
 
@@ -855,7 +858,7 @@ I a l'arrencada, al costat d'on es pinta el botó del so:
 node tools/check-ui.js
 ```
 
-Esperat: **77 comprovacions, 0 fallades.**
+Esperat: **0 fallades**, amb divuit comprovacions més que abans.
 
 - [ ] **Step 8: Commit**
 
@@ -920,7 +923,7 @@ Al final de `tools/checks/daltonic.js`:
 
   await page.goto(URL + '/#1');
   await page.waitForSelector('#lv-pieces svg');
-  const clara = await letterOn(1, 'I');     // peça I, groga: lletra fosca
+  const clara = await letterOn(1, 'C');     // peça C, blau cel: lletra fosca
   check('sobre una peça clara, lletra fosca', clara && clara.fill, '#16110F');
   const fosca = await letterOn(1, 'J');     // peça J, indi: lletra clara
   check('sobre una peça fosca, lletra clara', fosca && fosca.fill, '#F4EFE9');
@@ -950,14 +953,24 @@ function luma(hex) {
   };
   return .2126 * v(1) + .7152 * v(3) + .0722 * v(5);
 }
+
+// El punt on el contrast de la lletra fosca i el de la clara s'igualen. Amb un
+// llindar de 0,5 passarien a lletra clara sis de les dotze peces, que és un
+// canvi gros i no volgut; amb 0,18 només hi cau l'indi de la J, que és el que
+// es volia arreglar.
+const LLINDAR_LLETRA = .18;
 ```
+
+Lluminàncies de les dotze peces, per si cal comprovar-ho: A 0,42 · B 0,21 ·
+C 0,36 · D 0,45 · E 0,53 · F 1,00 · G 0,58 · H 0,24 · I 0,74 · J **0,12** ·
+K 0,78 · L 0,53.
 
 - [ ] **Step 4: Fer-la servir al text de `ball()`**
 
 Substituir el bloc del text (línies 141-148) per:
 
 ```js
-  const dark = luma(DATA.colors[letter]) > .5;   // peça clara -> lletra fosca
+  const dark = luma(DATA.colors[letter]) > LLINDAR_LLETRA;   // peça clara -> lletra fosca
   const cb = document.documentElement.dataset.palette === 'daltonic';
   const t = svgEl('text', {
     x: cx, y: cy, fill: ghost ? DATA.colors[letter] : (dark ? '#16110F' : '#F4EFE9'),
@@ -983,7 +996,7 @@ Substituir el bloc del text (línies 141-148) per:
 node tools/check-ui.js
 ```
 
-Esperat: **80 comprovacions, 0 fallades.**
+Esperat: **0 fallades**, amb tres comprovacions més que abans.
 
 - [ ] **Step 6: Commit**
 
@@ -1101,7 +1114,7 @@ Esperat: **FALLA**, amb la llista de textos vells trobats al DOM.
 node tools/check-ui.js
 ```
 
-Esperat: **83 comprovacions, 0 fallades.**
+Esperat: **0 fallades**, amb tres comprovacions més que abans.
 
 - [ ] **Step 5: Commit**
 
@@ -1155,7 +1168,7 @@ taronja i gris, perquè diga verd, roig i groc, i el filtre passa a dir-se
 node tools/check-ui.js
 ```
 
-Esperat: **83 comprovacions, 0 fallades.**
+Esperat: **0 fallades**, amb tres comprovacions més que abans.
 
 - [ ] **Step 3: Commit**
 
