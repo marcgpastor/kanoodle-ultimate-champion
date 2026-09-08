@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 KanoodleUltimateChampionGuide.pdf
 .claude/
+node_modules/

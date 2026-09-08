@@ -1,0 +1,12 @@
+{
+  "name": "kanoodle-ultimate-champion",
+  "private": true,
+  "description": "Només dependències de desenvolupament: el lloc publicat és HTML, CSS i JS plans.",
+  "scripts": {
+    "check": "node tools/check-ui.js",
+    "solve": "node tools/solve-all.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

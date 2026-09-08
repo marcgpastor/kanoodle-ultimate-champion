@@ -76,6 +76,18 @@ python3 -m http.server 8123
 I obre <http://localhost:8123>. Cal servidor: la pàgina carrega `data/puzzles.json`
 per `fetch`, i amb `file://` el navegador ho bloqueja.
 
+## Comprovar la interfície
+
+```bash
+npm install && npx playwright install chromium
+python3 -m http.server 8123 &
+node tools/check-ui.js
+```
+
+Obre la web en un Chromium i comprova el comportament de l'índex, els filtres,
+el mode sessió i les pistes. És l'única dependència del projecte i només fa
+falta per desenvolupar: el que es publica continua sent HTML, CSS i JS plans.
+
 ## Comptes: els teus temps et segueixen
 
 Opcional i apagat per defecte. Mentre `BASE` estigui buit a dalt de
