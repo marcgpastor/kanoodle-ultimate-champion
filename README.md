@@ -28,11 +28,17 @@ fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
   l'índex (dificultat, favorits, pendents) continuen comptant, i el diàleg et
   diu quants reptes queden. Si tanques la pàgina a mitges, la sessió t'espera.
 - **Com vas contra els altres**: si jugueu amb compte compartit, cada boleta de
-  l'índex porta un punt que diu com hi estàs: daurat si hi tens el millor temps
-  de tots, taronja si algú n'és més ràpid i gris si algú l'ha jugat i tu encara
+  l'índex porta un punt que diu com hi estàs: verd si hi tens el millor temps
+  de tots, roig si algú n'és més ràpid i groc si algú l'ha jugat i tu encara
   no. Els reptes que no ha tocat ningú més es queden sense punt. El filtre
-  **Em guanyen** els aïlla tots dos d'un colp: és la llista del que et falta per
-  passar-los al davant, i pots engegar-hi una sessió directament.
+  **Per millorar** els aïlla tots dos d'un colp: és la llista del que et falta
+  per passar-los al davant, i pots engegar-hi una sessió directament.
+- **Mode daltònic**: un interruptor al peu canvia tots els colors que s'inventa
+  la web —els punts de competició, el 2D i el 3D dels gràfics, el verd de «fet»
+  i el magenta d'alerta— per una paleta de blau i taronja, que és la que millor
+  es distingeix amb daltonisme roig-verd. Els 12 colors de les peces no es
+  toquen: el diagrama s'ha de continuar assemblant a la capsa que tens damunt la
+  taula. A canvi, la lletra de cada boleta es fa més gran i amb més contrast.
 - **Pistes**: si t'encalles, toca una peça i te la dibuixa al lloc que li toca,
   amb contorn de punts perquè no la confonguis amb el diagrama original. També
   va al revés: toca un buit del tauler i et surt la peça que hi va. Tornar a
@@ -85,8 +91,9 @@ node tools/check-ui.js
 ```
 
 Obre la web en un Chromium i comprova el comportament de l'índex, els filtres,
-el mode sessió i les pistes. És l'única dependència del projecte i només fa
-falta per desenvolupar: el que es publica continua sent HTML, CSS i JS plans.
+el mode sessió, les pistes i el mode daltònic. És l'única dependència del
+projecte i només fa falta per desenvolupar: el que es publica continua sent
+HTML, CSS i JS plans.
 
 ## Comptes: els teus temps et segueixen
 
@@ -260,9 +267,13 @@ js/api.js           client de la classificació (apagat si BASE és buit)
 api/                Cloudflare Worker + D1: usuaris i temps compartits
 data/puzzles.json   els 700 reptes, formes de les peces i geometria del 3D
 tools/generate.js   fabrica les dues tandes de reptes nous
+tools/stamp-sw.js   posa a sw.js la versió que toca abans de cada commit
+tools/check-ui.js   banc de comprovacions de la interfície (Playwright)
+tools/checks/       les comprovacions que executa tools/check-ui.js
 fonts/              woff2 (SIL Open Font License 1.1, vegeu fonts/README.md)
 icons/              icones de la instal·lació al mòbil
 manifest.json       metadades de la instal·lació
 sw.js               service worker (mode fora de línia)
+package.json        única dependència de desenvolupament: playwright-core
 tools/              extracció des del PDF
 ```
