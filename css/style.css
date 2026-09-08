@@ -14,6 +14,17 @@
   --amber:#F79806;      /* provisional: el taronja de la peça A */
   --gold:#F5C518;       /* hi tens el millor temps de tots */
 
+  /* Colors semàntics: què vol dir el color, no quin és. Són els que canvien
+     amb el mode daltònic; la paleta de dalt es queda quieta. */
+  --good:#98D320;          /* fet, rècord, va bé */
+  --alert:#F03BA6;         /* passat de temps, esborrar, errata */
+  --dim-2d:#00ADEF;        /* el tauler pla, a gràfics i llegendes */
+  --dim-3d:#F03BA6;        /* la piràmide, a gràfics i llegendes */
+  --chart:#F0E406;         /* barres del repartiment per durada */
+  --rival-lead:#F5C518;    /* el millor temps és teu */
+  --rival-behind:#F79806;  /* hi ha temps més ràpids */
+  --rival-open:#8A7F78;    /* encara no l'has jugat */
+
   --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",monospace;
@@ -66,7 +77,7 @@ button{font:inherit;color:inherit}
 .scoreboard div{display:flex;flex-direction:column-reverse;gap:.15em}
 .scoreboard dt{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--chalk-dim)}
 .scoreboard dd{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(1.5rem,4vw,2.1rem);line-height:1}
-.scoreboard dd b{color:var(--lime);font-weight:800}
+.scoreboard dd b{color:var(--good);font-weight:800}
 
 /* ---------- controls ---------- */
 .controls{
@@ -160,7 +171,7 @@ button{font:inherit;color:inherit}
 .bead.is-done:hover{color:#101010}
 .bead.is-fav::after{
   content:"★";position:absolute;top:-2px;right:-1px;font-size:.62rem;line-height:1;
-  color:var(--magenta);text-shadow:0 0 3px var(--ink);pointer-events:none
+  color:var(--alert);text-shadow:0 0 3px var(--ink);pointer-events:none
 }
 /* estat de competició. Va a l'esquerra perquè l'estrella de favorit ja ocupa
    la dreta, i amb vora fosca perquè es veja també sobre una boleta de color. */
@@ -225,7 +236,7 @@ button{font:inherit;color:inherit}
 .sessionbar__right{display:flex;align-items:center;gap:10px;margin-left:auto}
 .sessionbar__count{font:600 .82rem var(--mono);color:var(--chalk-dim);white-space:nowrap}
 .sessionbar__total{
-  font:600 1rem var(--mono);font-variant-numeric:tabular-nums;color:var(--lime);
+  font:600 1rem var(--mono);font-variant-numeric:tabular-nums;color:var(--good);
   padding-left:.2em
 }
 .dots{display:flex;gap:5px}
@@ -233,8 +244,8 @@ button{font:inherit;color:inherit}
   width:9px;height:9px;border-radius:50%;background:var(--hole);
   border:1px solid var(--hole-rim);display:block
 }
-.dots i.is-done{background:var(--lime);border-color:var(--lime)}
-.dots i.is-skip{background:none;border-color:var(--magenta)}
+.dots i.is-done{background:var(--good);border-color:var(--good)}
+.dots i.is-skip{background:none;border-color:var(--alert)}
 .dots i.is-now{background:var(--cyan);border-color:var(--cyan);transform:scale(1.35)}
 
 .summary{display:flex;flex-direction:column;gap:18px}
@@ -256,7 +267,7 @@ button{font:inherit;color:inherit}
 .summary__n{font:600 .95rem var(--mono);min-width:3.6em}
 .summary__t{margin-left:auto;font:600 1.05rem var(--mono);font-variant-numeric:tabular-nums}
 .summary__delta{font:600 .78rem var(--mono);white-space:nowrap}
-.summary__delta.up{color:var(--lime)}
+.summary__delta.up{color:var(--good)}
 .summary__delta.down{color:var(--chalk-dim)}
 .summary__delta.new{color:var(--cyan)}
 .summary__skip{color:var(--chalk-dim);font-style:italic}
@@ -276,8 +287,12 @@ button{font:inherit;color:inherit}
 }
 .fav:hover{color:var(--chalk);border-color:#5A4F4A}
 .fav:active{transform:scale(.92)}
-.fav[aria-pressed="true"]{color:#2B0016;border-color:var(--magenta);background:var(--magenta)}
-.fav[aria-pressed="true"]:hover{color:#2B0016;border-color:#F55FBA;background:#F55FBA}
+.fav[aria-pressed="true"]{color:#2B0016;border-color:var(--alert);background:var(--alert)}
+.fav[aria-pressed="true"]:hover{
+  color:#2B0016;
+  border-color:color-mix(in srgb, var(--alert) 78%, #fff);
+  background:color-mix(in srgb, var(--alert) 78%, #fff)
+}
 .level__kind{
   font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.18em;
   color:var(--ink);background:var(--cyan);padding:.35em .75em;border-radius:999px
@@ -288,7 +303,9 @@ button{font:inherit;color:inherit}
   padding:.3em .7em;border-radius:999px;white-space:nowrap
 }
 .level__note{
-  color:#FFD9EC;background:rgba(240,59,166,.13);border-left:3px solid var(--magenta);
+  color:color-mix(in srgb, var(--alert) 28%, #fff);
+  background:color-mix(in srgb, var(--alert) 13%, transparent);
+  border-left:3px solid var(--alert);
   padding:.7em .9em;border-radius:0 8px 8px 0;font-size:.9rem;margin-bottom:1em
 }
 .diagram{background:var(--tray);border-radius:var(--radius);padding:clamp(14px,2.6vw,26px)}
@@ -336,7 +353,7 @@ button{font:inherit;color:inherit}
 }
 .clock__adjust button:hover{border-color:#5A4F4A}
 .clock__adjust span{font:600 .95rem var(--mono);color:var(--chalk-dim);min-width:4em}
-.clock__over{color:var(--magenta);font:600 .85rem var(--mono);margin:-.2em 0 .8em}
+.clock__over{color:var(--alert);font:600 .85rem var(--mono);margin:-.2em 0 .8em}
 .clock__auto{
   display:block;width:100%;margin-top:10px;border:1px solid var(--hole-rim);
   background:none;color:var(--chalk-dim);cursor:pointer;border-radius:999px;
@@ -344,12 +361,13 @@ button{font:inherit;color:inherit}
 }
 .clock__auto:hover{color:var(--chalk);border-color:#5A4F4A}
 .clock__auto[aria-pressed="true"]{
-  background:rgba(152,211,32,.12);border-color:var(--lime);color:var(--lime)
+  background:color-mix(in srgb, var(--good) 12%, transparent);
+  border-color:var(--good);color:var(--good)
 }
 .clock__auto::before{content:"○ ";font-size:.9em}
 .clock__auto[aria-pressed="true"]::before{content:"● "}
-.clock__presets button.is-best{border-color:var(--lime);color:var(--lime)}
-.clock__presets button.is-best.is-on{background:var(--lime);border-color:var(--lime);color:#132000}
+.clock__presets button.is-best{border-color:var(--good);color:var(--good)}
+.clock__presets button.is-best.is-on{background:var(--good);border-color:var(--good);color:#132000}
 .clock__sound{
   border:0;background:none;color:var(--chalk-dim);cursor:pointer;font-size:.76rem;
   margin-top:10px;padding:.2em
@@ -361,9 +379,9 @@ button{font:inherit;color:inherit}
   font-variant-numeric:tabular-nums;margin-bottom:.45em
 }
 .clock__frac{color:var(--chalk-dim);font-size:.55em}
-.clock.is-running .clock__time{color:var(--lime)}
+.clock.is-running .clock__time{color:var(--good)}
 .clock.is-warning .clock__time,
-.clock.is-over .clock__time{color:var(--magenta)}
+.clock.is-over .clock__time{color:var(--alert)}
 .clock.is-over .clock__time{animation:pulse 1s ease-in-out 3}
 @keyframes pulse{50%{opacity:.25}}
 .clock__buttons{display:flex;gap:8px;justify-content:center;margin-bottom:10px}
@@ -411,21 +429,21 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 .times__list li:last-child{border-bottom:0}
 .times__val{font:600 1.02rem var(--mono);font-variant-numeric:tabular-nums;min-width:5.6em}
 .times__date{color:var(--chalk-dim);font-size:.8rem;margin-right:auto}
-.times__best{color:var(--lime)}
-.times__best .times__val{color:var(--lime)}
+.times__best{color:var(--good)}
+.times__best .times__val{color:var(--good)}
 .times__del{border:0;background:none;color:var(--chalk-dim);cursor:pointer;padding:.2em .4em;line-height:1}
-.times__del:hover{color:var(--magenta)}
+.times__del:hover{color:var(--alert)}
 .times__empty{color:var(--chalk-dim);font-size:.9rem}
 
 /* ---------- els altres jugadors ---------- */
 .masthead__links{display:flex;gap:16px;flex-wrap:wrap}
 .whoami{color:var(--chalk-dim);font-size:.82rem}
-.whoami b{color:var(--lime);font-weight:600}
+.whoami b{color:var(--good);font-weight:600}
 .whoami button{
   background:none;border:0;padding:0 0 0 .5em;color:var(--chalk-dim);
   cursor:pointer;font-size:.82rem;text-decoration:underline;text-underline-offset:3px
 }
-.whoami button:hover{color:var(--magenta)}
+.whoami button:hover{color:var(--alert)}
 
 .rivals__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
 .rivals__list li{
@@ -437,7 +455,7 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 .rivals__name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rivals__t{margin-left:auto;font:600 .98rem var(--mono);font-variant-numeric:tabular-nums}
 .rivals__list li.is-me .rivals__name{color:var(--cyan);font-weight:600}
-.rivals__list li.is-first .rivals__t{color:var(--lime)}
+.rivals__list li.is-first .rivals__t{color:var(--good)}
 .rivals__list li.is-none .rivals__t{color:#5A4F4A}
 
 .standings{width:100%;border-collapse:collapse;font-size:.94rem}
@@ -450,7 +468,7 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 .standings .num{font:600 1rem var(--mono);font-variant-numeric:tabular-nums;text-align:right}
 .standings th.num{font:600 .7rem var(--mono);letter-spacing:.14em}
 .standings tr.is-me td{color:var(--cyan)}
-.standings .crown{color:var(--lime)}
+.standings .crown{color:var(--good)}
 
 .invite{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.2em}
 .invite input{
@@ -462,7 +480,7 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
   padding:.7em .9em;margin-bottom:1em;flex-wrap:wrap
 }
 .invitelink code{
-  flex:1 1 14em;min-width:0;font:500 .78rem var(--mono);color:var(--lime);
+  flex:1 1 14em;min-width:0;font:500 .78rem var(--mono);color:var(--good);
   overflow-wrap:anywhere
 }
 
@@ -510,7 +528,7 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 .colophon{margin-top:44px;padding-top:20px;border-top:1px solid rgba(255,255,255,.07);color:var(--chalk-dim);font-size:.85rem}
 .colophon__actions{display:flex;gap:18px;flex-wrap:wrap;margin-top:.6em}
 .link{background:none;border:0;padding:0;cursor:pointer;color:var(--cyan);font-size:.85rem;text-decoration:underline;text-underline-offset:3px}
-.link--danger{color:var(--magenta)}
+.link--danger{color:var(--alert)}
 
 /* ---------- avís ---------- */
 .toast{
