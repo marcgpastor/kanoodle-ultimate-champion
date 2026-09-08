@@ -1043,12 +1043,21 @@ function applyPalette(on) {
   forgetColors();                       // el JS té colors desats que ja no valen
 }
 
+/** torna a pintar la vista que es vegi ara mateix, sigui quina sigui. Cal
+    cridar-la sempre que canvia l'estat de fons (colors, temps, sessió...)
+    perquè el peu de pàgina amb els seus botons ara es veu des de qualsevol
+    vista, no només des de l'índex. */
+function repintaVistaActual() {
+  if (!$('#view-index').hidden) renderIndex();
+  if (!$('#view-stats').hidden) renderStats();
+  if (current !== null) { renderTimes(); paintPieces(); paintHints(); paintSession(); }   // temps+gràfica, peces, diagrama i barra de sessió
+  if (!$('#view-board').hidden) { refreshBoard(); renderBoard(); }
+}
+
 /** encén o apaga el mode daltònic i torna a pintar el que es veja */
 function setPalette(on) {
   applyPalette(on);
-  if (!$('#view-index').hidden) renderIndex();
-  if (!$('#view-stats').hidden) renderStats();
-  if (current !== null) { renderTimes(); paintPieces(); paintHints(); }   // temps+gràfica, llista de peces i diagrama
+  repintaVistaActual();
 }
 
 /** com van els altres jugadors en aquest repte */
@@ -1847,7 +1856,7 @@ function wire() {
       }
       saveTimes(); saveFavs();
       if (playing()) { API.markEverything(); syncNow(); }
-      renderIndex();
+      repintaVistaActual();
       toast(`${added} ${added === 1 ? 'temps importat' : 'temps importats'}` +
             (favAdded ? ` i ${favAdded} ${favAdded === 1 ? 'favorit' : 'favorits'}` : '') +
             (tirat ? `. ${tirat} ${tirat === 1 ? 'entrada descartada' : 'entrades descartades'}.` : '.'));
@@ -1858,7 +1867,7 @@ function wire() {
     if (!confirm('Segur que vols esborrar tots els temps, els favorits i les sessions? No es pot desfer.')) return;
     store = {}; favs = new Set(); session = null; sessionLog = [];
     if (compEnabled()) API.logout();
-    saveTimes(); saveFavs(); saveSession(); saveLog(); renderIndex();
+    saveTimes(); saveFavs(); saveSession(); saveLog(); repintaVistaActual();
     toast('Tot esborrat.');
   };
 

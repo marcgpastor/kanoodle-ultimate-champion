@@ -118,4 +118,82 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('barra "Reptes 3D": color de la piràmide', await barColor('Reptes 3D'), 'rgb(240, 59, 166)');
   check('barra "En total": color de «fet»', await barColor('En total'), 'rgb(152, 211, 32)');
   check('barra "1–2 min": color del gràfic per durada', await barColor('1–2 min'), 'rgb(240, 228, 6)');
+
+  // El peu (amb «Esborra-ho tot») ara es veu des de qualsevol vista, no només
+  // des de l'índex: cal que el clic hi repinti el que hi hagi obert en aquell
+  // moment, no només l'índex de sota. #wipe usa confirm(), que en un navegador
+  // sense caps no té cap diàleg real: l'ignora i torna false. Substituïm
+  // window.confirm només per aquest clic i el desfem tot seguit, perquè no se'l
+  // mengin les properes tandes.
+  const URL = process.env.KANOODLE_URL || 'http://localhost:8123';
+  const acceptConfirms = () => page.evaluate(() => {
+    window.__confirmDeVeres = window.confirm;
+    window.confirm = () => true;
+  });
+  const restoreConfirms = () => page.evaluate(() => {
+    window.confirm = window.__confirmDeVeres;
+    delete window.__confirmDeVeres;
+  });
+
+  // venim de '#stats': cal tornar a l'índex abans de seed(), perquè el reload
+  // no torna a cridar renderIndex() (route() només pinta la vista de l'URL)
+  // i el «.bead» que espera seed() no hi arribaria mai.
+  await page.goto(URL + '/');
+  await seed(page, {
+    times: { 1: [{ t: 60000, d: '2026-09-01T10:00:00.000Z' }, { t: 50000, d: '2026-09-02T10:00:00.000Z' }] },
+  });
+  // canviar només el hash no recarrega el document (el navegador ho tracta com
+  // a navegació dins la mateixa pàgina), i llavors app.js no rellegeix res de
+  // localStorage: cal fixar el hash i fer un reload de veres perquè arrenqui
+  // amb la sessió ja present.
+  await page.evaluate(() => {
+    localStorage.setItem('kanoodle.session.v1', JSON.stringify({
+      ids: [1, 2], idx: 0, results: [], startedAt: new Date().toISOString(),
+    }));
+    location.hash = '#1';
+  });
+  await page.reload();
+  await page.waitForSelector('#lv-times li');
+  check('abans d’esborrar: hi ha temps al nivell obert',
+    await page.$$eval('#lv-times li', li => li.length), 2);
+  check('abans d’esborrar: la sessió es veu',
+    await page.isVisible('#sessionbar'), true);
+  check('abans d’esborrar: comptador de sessió',
+    await page.textContent('#sessioncounter'), '1 de 2');
+
+  await acceptConfirms();
+  await tap(page, '#wipe');
+  await restoreConfirms();
+
+  check('esborrar buida la llista de temps sense navegar enlloc',
+    await page.$$eval('#lv-times li', li => li.map(x => x.textContent)),
+    ['Cap temps desat encara.']);
+  check('esborrar treu el gràfic d’evolució del nivell obert',
+    await page.$$('#lv-spark polyline'), []);
+  check('esborrar amaga la barra de sessió perquè ja no n’hi ha',
+    await page.isVisible('#sessionbar'), false);
+  check('esborrar torna a mostrar la barra normal del nivell',
+    await page.isVisible('#levelbar'), true);
+
+  // el mateix, però amb la classificació oberta: esborrar tanca la sessió amb
+  // el servidor (API.logout()) i, si no repintem, la taula es queda ensenyant
+  // algú que ja no ha entrat enlloc
+  await page.goto(URL + '/');   // venim de '#1': mateix motiu que abans
+  await seed(page, {
+    player: { token: 'fals', id: 1, name: 'Marc' }, times: TIMES, board: BOARD,
+  });
+  await page.goto(URL + '/#classificacio');
+  await page.waitForSelector('#boardbody table');
+  check('abans d’esborrar: hi surts a la classificació',
+    (await page.textContent('#boardbody')).includes('Marc'), true);
+
+  await acceptConfirms();
+  await tap(page, '#wipe');
+  await restoreConfirms();
+
+  const boardTxt = await page.textContent('#boardbody');
+  check('esborrar treu la classificació de sobre: ja no hi ets',
+    boardTxt.includes('Encara no hi ets'), true);
+  check('esborrar no deixa ningú a la taula, encara que sigui vella',
+    boardTxt.includes('Marc'), false);
 };
