@@ -125,6 +125,23 @@ function gloss(defs) {
   defs.append(g);
 }
 
+// Lluminància relativa d'un color de peça, per triar si la lletra hi va fosca
+// o clara. Les 12 peces són gairebé totes clares, però l'indi de la J no ho és
+// i amb lletra fosca no s'hi llegia res.
+function luma(hex) {
+  const v = i => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
+  };
+  return .2126 * v(1) + .7152 * v(3) + .0722 * v(5);
+}
+
+// El punt on el contrast de la lletra fosca i el de la clara s'igualen. Amb un
+// llindar de 0,5 passarien a lletra clara sis de les dotze peces, que és un
+// canvi gros i no volgut; amb 0,18 només hi cau l'indi de la J, que és el que
+// es volia arreglar.
+const LLINDAR_LLETRA = .18;
+
 /** una boleta: buida, amb peça del diagrama, o fantasma si ve d'una pista */
 function ball(g, cx, cy, r, letter, ghost, id) {
   if (letter === '.') {
@@ -157,12 +174,24 @@ function ball(g, cx, cy, r, letter, ghost, id) {
     target.append(svgEl('circle', { cx, cy, r, fill: DATA.colors[letter], stroke: '#100C0A', 'stroke-width': r * .09 }));
     target.append(svgEl('circle', { cx, cy, r, fill: 'url(#gloss)' }));
   }
+  const dark = luma(DATA.colors[letter]) > LLINDAR_LLETRA;   // peça clara -> lletra fosca
+  const cb = document.documentElement.dataset.palette === 'daltonic';
   const t = svgEl('text', {
-    x: cx, y: cy, fill: ghost ? DATA.colors[letter] : '#16110F',
+    x: cx, y: cy, fill: ghost ? DATA.colors[letter] : (dark ? '#16110F' : '#F4EFE9'),
     'fill-opacity': ghost ? .95 : 1,
     'text-anchor': 'middle', 'dominant-baseline': 'central',
-    'font-family': 'IBM Plex Sans, sans-serif', 'font-weight': '600', 'font-size': r * 1.15
+    'font-family': 'IBM Plex Sans, sans-serif',
+    'font-weight': cb ? '700' : '600',
+    'font-size': r * (cb ? 1.35 : 1.15)
   });
+  // en mode daltònic la lletra és el que distingeix la peça: que no es perda
+  // contra cap color, per fosc o clar que siga
+  if (cb && !ghost) {
+    t.setAttribute('stroke', dark ? '#F4EFE9' : '#16110F');
+    t.setAttribute('stroke-width', r * .07);
+    t.setAttribute('stroke-opacity', '.55');
+    t.setAttribute('paint-order', 'stroke');
+  }
   t.textContent = letter;
   target.append(t);
   if (ghost) g.append(target);

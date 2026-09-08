@@ -121,4 +121,21 @@ module.exports = async function ({ page, check, tap, seed }) {
   await cdp.send('Network.setBypassServiceWorker', { bypass: false });
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: false });
   await cdp.detach();
+
+  // La lletra de la peça és el canal que no depèn del color.
+  const letterOn = (n, piece) => page.evaluate(([num, L]) => {
+    const t = [...document.querySelectorAll('#lv-pieces svg text')]
+      .find(x => x.textContent === L);
+    if (!t) return null;
+    const s = getComputedStyle(t);
+    return { fill: t.getAttribute('fill'), weight: s.fontWeight };
+  }, [n, piece]);
+
+  await page.goto(URL + '/#1');
+  await page.waitForSelector('#lv-pieces svg');
+  const clara = await letterOn(1, 'C');     // peça C, blau cel: lletra fosca
+  check('sobre una peça clara, lletra fosca', clara && clara.fill, '#16110F');
+  const fosca = await letterOn(1, 'J');     // peça J, indi: lletra clara
+  check('sobre una peça fosca, lletra clara', fosca && fosca.fill, '#F4EFE9');
+  check('en mode daltònic la lletra va en negreta', fosca && fosca.weight, '700');
 };
