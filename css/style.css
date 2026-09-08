@@ -10,7 +10,6 @@
   --chalk-dim:#9A8F88;  /* text secundari */
   --cyan:#00ADEF;       /* acció */
   --lime:#98D320;       /* fet / rècord */
-  --magenta:#F03BA6;    /* alerta */
   --amber:#F79806;      /* provisional: el taronja de la peça A */
 
   /* Colors semàntics: què vol dir el color, no quin és. Són els que canvien
@@ -215,8 +214,9 @@ button{font:inherit;color:inherit}
 .rack--gen .rack__head b{color:var(--lime)}
 .rack--gen .bead:not(.is-done):hover{border-color:var(--lime)}
 
-/* fetes per ordinador i encara sense rodar: taronja, que no es confongui amb
-   el verd de "fet" ni amb el magenta d'errata del quadern */
+/* fetes per ordinador i encara sense rodar: ambre fix, que no es confongui
+   amb --good ("fet") ni amb --alert (l'errata del quadern) — cap dels dos és
+   sempre verd ni magenta, depèn del mode daltònic */
 .beta{
   font-family:var(--mono);font-weight:600;letter-spacing:.18em;text-transform:uppercase;
   color:#2A1600;background:var(--amber);border-radius:999px;cursor:help
@@ -539,8 +539,13 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 
 .empty{color:var(--chalk-dim);font-size:.92rem;line-height:1.6}
 
-/* ---------- peu ---------- */
-.colophon{margin-top:44px;padding-top:20px;border-top:1px solid rgba(255,255,255,.07);color:var(--chalk-dim);font-size:.85rem}
+/* ---------- peu ----------
+   Viu fora de les .view (és de tota l'aplicació, no de l'índex), per això es
+   dona el mateix ample i coixí que .view en lloc d'heretar-los. */
+.colophon{
+  max-width:1180px;margin:44px auto 0;padding:20px var(--gap) 72px;
+  border-top:1px solid rgba(255,255,255,.07);color:var(--chalk-dim);font-size:.85rem
+}
 .colophon__actions{display:flex;gap:18px;flex-wrap:wrap;margin-top:.6em}
 .link{background:none;border:0;padding:0;cursor:pointer;color:var(--cyan);font-size:.85rem;text-decoration:underline;text-underline-offset:3px}
 .link--danger{color:var(--alert)}

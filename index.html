@@ -124,18 +124,6 @@
       </div>
     </div>
   </dialog>
-
-  <footer class="colophon">
-    <p>Els temps i els favorits es desen només en aquest navegador.</p>
-    <p class="colophon__actions">
-      <button type="button" id="export" class="link">Exporta-ho tot</button>
-      <button type="button" id="import" class="link">Importa-ho</button>
-      <button type="button" id="wipe" class="link link--danger">Esborra-ho tot</button>
-      <button type="button" id="cbmode" class="link" aria-pressed="false">Mode daltònic</button>
-      <a class="link" href="#invitacions" id="adminlink" hidden>Invitacions</a>
-    </p>
-    <input type="file" id="importfile" accept="application/json" hidden>
-  </footer>
 </div>
 
 <!-- ============ REPTE ============ -->
@@ -277,6 +265,19 @@
   <h2 class="stats__title">Com et va anant</h2>
   <div class="stats" id="stats"></div>
 </div>
+
+<!-- ============ PEU ============ -->
+<footer class="colophon">
+  <p>Els temps i els favorits es desen només en aquest navegador.</p>
+  <p class="colophon__actions">
+    <button type="button" id="export" class="link">Exporta-ho tot</button>
+    <button type="button" id="import" class="link">Importa-ho</button>
+    <button type="button" id="wipe" class="link link--danger">Esborra-ho tot</button>
+    <button type="button" id="cbmode" class="link" aria-pressed="false">Mode daltònic</button>
+    <a class="link" href="#invitacions" id="adminlink" hidden>Invitacions</a>
+  </p>
+  <input type="file" id="importfile" accept="application/json" hidden>
+</footer>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

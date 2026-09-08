@@ -33,10 +33,11 @@ fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
   no. Els reptes que no ha tocat ningú més es queden sense punt. El filtre
   **Per millorar** els aïlla tots dos d'un colp: és la llista del que et falta
   per passar-los al davant, i pots engegar-hi una sessió directament.
-- **Mode daltònic**: un interruptor al peu canvia tots els colors que s'inventa
-  la web —els punts de competició, el 2D i el 3D dels gràfics, el verd de «fet»
-  i el magenta d'alerta— per una paleta de blau i taronja, que és la que millor
-  es distingeix amb daltonisme roig-verd. Els 12 colors de les peces no es
+- **Mode daltònic**: un interruptor al peu, present a totes les pantalles,
+  canvia tots els colors que s'inventa la web —els punts de competició, el 2D
+  i el 3D dels gràfics, el verd de «fet» i el magenta d'alerta— per una
+  paleta de blau i taronja, que és la que millor es distingeix amb
+  daltonisme roig-verd. Els 12 colors de les peces no es
   toquen: el diagrama s'ha de continuar assemblant a la capsa que tens damunt la
   taula. A canvi, la lletra de cada boleta es fa més gran i amb més contrast.
 - **Pistes**: si t'encalles, toca una peça i te la dibuixa al lloc que li toca,

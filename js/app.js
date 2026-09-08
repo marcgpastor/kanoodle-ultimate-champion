@@ -29,6 +29,7 @@ const cssVar = name => {
   return colorMemo.get(name);
 };
 const forgetColors = () => colorMemo.clear();
+const cbOn = () => document.documentElement.dataset.palette === 'daltonic';
 
 let DATA = null;
 let DIFF = {};               // reptes -> peces que has de col·locar (1–10)
@@ -175,7 +176,7 @@ function ball(g, cx, cy, r, letter, ghost, id) {
     target.append(svgEl('circle', { cx, cy, r, fill: 'url(#gloss)' }));
   }
   const dark = luma(DATA.colors[letter]) > LLINDAR_LLETRA;   // peça clara -> lletra fosca
-  const cb = document.documentElement.dataset.palette === 'daltonic';
+  const cb = cbOn();
   const t = svgEl('text', {
     x: cx, y: cy, fill: ghost ? DATA.colors[letter] : (dark ? '#16110F' : '#F4EFE9'),
     'fill-opacity': ghost ? .95 : 1,
@@ -454,22 +455,7 @@ function openLevel(n, push = true) {
   $('#lv-caption').hidden = !is3D(n);
   if (is3D(n)) $('#lv-caption').textContent = 'La capa 5×5 és la base de la piràmide; la 1×1, el cim.';
 
-  const placed = letters(n);
-  const todo = Object.keys(DATA.shapes).filter(L => !placed.has(L));
-  $('#lv-pcount').textContent = `— ${todo.length} de 12`;
-  const pieces = $('#lv-pieces');
-  pieces.textContent = '';
-  if (!todo.length) pieces.append(el('p', 'empty', 'Cap: el diagrama ja és complet.'));
-  for (const L of todo) {
-    const p = el('button', 'piece');
-    p.type = 'button';
-    p.dataset.piece = L;
-    p.title = `Ensenya’m on va la peça ${L}`;
-    p.append(drawPiece(L), el('span', null, L));
-    p.onclick = () => toggleHint(L);
-    pieces.append(p);
-  }
-  $('#hintbar').hidden = !todo.length;
+  paintPieces();
 
   $('#prev').disabled = n === 1;
   $('#next').disabled = n === LAST;
@@ -488,6 +474,28 @@ function openLevel(n, push = true) {
 function paintFav() {
   $('#fav').setAttribute('aria-pressed', String(fav(current)));
   $('#fav').title = fav(current) ? 'Treu-lo dels favorits' : 'Marca’l com a favorit';
+}
+
+/** la llista de peces per col·locar del repte obert: a part perquè el mode
+    daltònic també l'ha de repintar, no només el diagrama, ja que comparteixen
+    `ball()` per dibuixar la lletra de cada peça */
+function paintPieces() {
+  const placed = letters(current);
+  const todo = Object.keys(DATA.shapes).filter(L => !placed.has(L));
+  $('#lv-pcount').textContent = `— ${todo.length} de 12`;
+  const pieces = $('#lv-pieces');
+  pieces.textContent = '';
+  if (!todo.length) pieces.append(el('p', 'empty', 'Cap: el diagrama ja és complet.'));
+  for (const L of todo) {
+    const p = el('button', 'piece');
+    p.type = 'button';
+    p.dataset.piece = L;
+    p.title = `Ensenya’m on va la peça ${L}`;
+    p.append(drawPiece(L), el('span', null, L));
+    p.onclick = () => toggleHint(L);
+    pieces.append(p);
+  }
+  $('#hintbar').hidden = !todo.length;
 }
 
 function renderTimes() {
@@ -1025,15 +1033,22 @@ function paintWhoami() {
   box.append(out);
 }
 
-/** encén o apaga el mode daltònic i torna a pintar el que es veja */
-function setPalette(on) {
+/** només canvia l'estat: l'atribut, el botó i la memòria de colors. Sense
+    repintar res, perquè a l'arrencada es crida abans de route() i encara no
+    hi ha res a pintar (route() ja ho farà tot d'una). */
+function applyPalette(on) {
   if (on) document.documentElement.dataset.palette = 'daltonic';
   else delete document.documentElement.dataset.palette;
   $('#cbmode').setAttribute('aria-pressed', String(!!on));
   forgetColors();                       // el JS té colors desats que ja no valen
+}
+
+/** encén o apaga el mode daltònic i torna a pintar el que es veja */
+function setPalette(on) {
+  applyPalette(on);
   if (!$('#view-index').hidden) renderIndex();
   if (!$('#view-stats').hidden) renderStats();
-  if (current !== null) { renderTimes(); paintHints(); }   // temps+gràfica, diagrama i llista de peces
+  if (current !== null) { renderTimes(); paintPieces(); paintHints(); }   // temps+gràfica, llista de peces i diagrama
 }
 
 /** com van els altres jugadors en aquest repte */
@@ -1930,7 +1945,7 @@ fetch('data/puzzles.json')
     paintAutoTarget();
     $('#sound').setAttribute('aria-pressed', String(prefs.sound));
     $('#sound').textContent = prefs.sound ? '🔊 So activat' : '🔇 So desactivat';
-    setPalette(prefs.cb);
+    applyPalette(prefs.cb);
     renderPresets();
     setMode(prefs.mode);
     paintWhoami();

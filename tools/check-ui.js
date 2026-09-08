@@ -19,7 +19,7 @@ const { chromium } = require('playwright-core');
 const BASE = process.env.KANOODLE_URL || 'http://localhost:8123';
 
 /** Chromium headless (preferit) o complet: el que instal·la Playwright, o el que digui KANOODLE_CHROME.
-    Preferim chrome-headless-shell perquè aquesta màquina no pinta fotogrames;
+    Preferim chrome-headless-shell perquè en una màquina sense pantalla no pinta fotogrames;
     el full Chromium és només fallback. Escollem la versió més nova per número. */
 function chromeHeadlessPath() {
   if (process.env.KANOODLE_CHROME) return process.env.KANOODLE_CHROME;
@@ -68,6 +68,7 @@ function check(name, got, want) {
 /** Clic despatxat, amb comprovació que l'element no estiga tapat. */
 async function tap(page, selector) {
   const ok = await page.$eval(selector, e => {
+    e.scrollIntoView({ block: 'center' });
     const r = e.getBoundingClientRect();
     const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     e.click();

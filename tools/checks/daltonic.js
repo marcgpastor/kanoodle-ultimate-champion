@@ -21,8 +21,13 @@ module.exports = async function ({ page, check, tap, seed }) {
   const normal = await palette();
   check('normal: el punt de dalt és verd', normal['--rival-lead'], '#35C759');
   check('normal: el de baix és roig', normal['--rival-behind'], '#EF3338');
+  check('normal: el 2D és cian', normal['--dim-2d'], '#00ADEF');
+  check('normal: la piràmide és magenta', normal['--dim-3d'], '#F03BA6');
+  check('normal: «va bé» és verd llima', normal['--good'], '#98D320');
+  check('normal: el gràfic de barres és groc', normal['--chart'], '#F0E406');
+  check('normal: l’alerta és magenta', normal['--alert'], '#F03BA6');
+  check('normal: el cian d’acció és el de sempre', normal['--cyan'], '#00ADEF');
 
-  await page.$eval('#cbmode', e => e.scrollIntoView()); // al peu de pàgina: cal que hi siga per no tapar-lo res
   await tap(page, '#cbmode');
   check('l’interruptor queda encés', await page.getAttribute('#cbmode', 'aria-pressed'), 'true');
   check('l’atribut hi és', await page.getAttribute('html', 'data-palette'), 'daltonic');
@@ -36,7 +41,7 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('daltònic: «va bé» passa a groc pàl·lid', cb['--good'], '#F0E442');
   check('daltònic: el gràfic de barres passa a taronja', cb['--chart'], '#E69F00');
   check('daltònic: l’alerta passa a vermelló', cb['--alert'], '#D55E00');
-  check('el cian d’acció no es mou', cb['--cyan'], normal['--cyan']);
+  check('el cian d’acció no es mou en mode daltònic', cb['--cyan'], '#00ADEF');
 
   // el que importa: que arribe al que es pinta, no només a les variables
   await seed(page, {
@@ -96,18 +101,15 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('normal: sense stroke ni paint-order',
     normalC && [normalC.stroke, normalC.paintOrder], [null, null]);
 
-  // #cbmode viu dins #view-index, que és `hidden` mentre hi ha un nivell obert:
-  // no hi ha manera de clicar-lo de veres des d'ací amb el ratolí. Però és
-  // exactament l'escenari que calia cobrir —que `setPalette()` es cride amb
-  // `current !== null`—, així que forcem el clic sense passar per `tap()`
-  // (que fallaria dient que el botó està tapat, cosa certa però irrellevant ací).
-  await page.$eval('#cbmode', e => e.click());
+  // El peu viu fora de les .view, o siga que #cbmode es pot clicar de veres
+  // encara que hi haja un nivell obert: és exactament l'escenari que calia
+  // cobrir, que `setPalette()` es cride amb `current !== null`.
+  await tap(page, '#cbmode');
   check('sparkline: es repinta en calent quan s’encén el mode',
     await page.$eval('#lv-spark polyline', e => e.getAttribute('stroke').toUpperCase()), '#56B4E9');
 
   await page.goto(URL + '/');
   await page.waitForSelector('.bead');
-  await page.$eval('#cbmode', e => e.scrollIntoView());
   await tap(page, '#cbmode');
   check('es pot tornar arrere', await page.getAttribute('html', 'data-palette'), null);
 

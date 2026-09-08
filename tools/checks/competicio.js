@@ -104,12 +104,18 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('sense compte, llegenda amagada', await page.isVisible('#dotkey'), false);
   check('sense compte, cap punt', await page.$$eval('.bead .rivaldot', d => d.length), 0);
 
-  // les estadístiques pinten amb el que diu el CSS
+  // les estadístiques pinten amb el que diu el CSS: no n'hi ha prou que hi haja
+  // color, cal que siga el color que toca a cada barra (bar() ve de cssVar())
   await seed(page, { times: TIMES });
   await page.goto((process.env.KANOODLE_URL || 'http://localhost:8123') + '/#stats');
   await page.waitForSelector('.stats .card');
-  const barColors = await page.$$eval('.bar__fill', bs =>
-    [...new Set(bs.map(b => getComputedStyle(b).backgroundColor))]);
-  check('les barres surten pintades', barColors.length > 0, true);
-  check('cap barra sense color', barColors.includes('rgba(0, 0, 0, 0)'), false);
+  const barColor = label => page.evaluate(l => {
+    const head = [...document.querySelectorAll('.bar__head')]
+      .find(h => h.querySelector('span')?.textContent === l);
+    return head ? getComputedStyle(head.nextElementSibling.querySelector('.bar__fill')).backgroundColor : null;
+  }, label);
+  check('barra "Reptes 2D": color del tauler pla', await barColor('Reptes 2D'), 'rgb(0, 173, 239)');
+  check('barra "Reptes 3D": color de la piràmide', await barColor('Reptes 3D'), 'rgb(240, 59, 166)');
+  check('barra "En total": color de «fet»', await barColor('En total'), 'rgb(152, 211, 32)');
+  check('barra "1–2 min": color del gràfic per durada', await barColor('1–2 min'), 'rgb(240, 228, 6)');
 };
