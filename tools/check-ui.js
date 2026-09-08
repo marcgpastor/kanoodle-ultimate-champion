@@ -18,19 +18,36 @@ const { chromium } = require('playwright-core');
 
 const BASE = process.env.KANOODLE_URL || 'http://localhost:8123';
 
-/** Chromium: el que instal·la Playwright, o el que digui KANOODLE_CHROME. */
-function chromePath() {
+/** Chromium headless (prefuit) o complet: el que instal·la Playwright, o el que digui KANOODLE_CHROME.
+    Preferim chrome-headless-shell perquè aquesta màquina no pinta fotogrames;
+    el full Chromium és només fallback. Escollem la versió més nova per número. */
+function chromeHeadlessPath() {
   if (process.env.KANOODLE_CHROME) return process.env.KANOODLE_CHROME;
   const root = path.join(os.homedir(), '.cache', 'ms-playwright');
   if (!fs.existsSync(root)) return undefined;
-  const dirs = fs.readdirSync(root).filter(d => d.startsWith('chromium')).sort().reverse();
-  for (const d of dirs) {
+
+  // Recopila versions de chromium_* i chromium-*, extreu el número de versió
+  const dirs = fs.readdirSync(root).filter(d => d.startsWith('chromium'));
+  const versions = dirs.map(d => {
+    const match = d.match(/chromium[_-](?:headless_shell[_-])?(\d+)$/);
+    const isHeadless = d.includes('headless_shell');
+    return match ? { dir: d, version: parseInt(match[1], 10), isHeadless } : null;
+  }).filter(Boolean);
+
+  // Ordena per versió numèrica descendent, i dins de cada versió, headless primer
+  versions.sort((a, b) => {
+    if (b.version !== a.version) return b.version - a.version;
+    return (b.isHeadless ? 1 : 0) - (a.isHeadless ? 1 : 0);
+  });
+
+  // Intenta chrome-headless-shell primer, després el full Chromium
+  for (const { dir } of versions) {
     for (const rel of [
+      ['chrome-headless-shell-linux64', 'chrome-headless-shell'],
       ['chrome-linux64', 'chrome'],
       ['chrome-linux', 'chrome'],
-      ['chrome-headless-shell-linux64', 'chrome-headless-shell'],
     ]) {
-      const p = path.join(root, d, ...rel);
+      const p = path.join(root, dir, ...rel);
       if (fs.existsSync(p)) return p;
     }
   }
@@ -56,7 +73,7 @@ async function tap(page, selector) {
     e.click();
     return r.width > 0 && r.height > 0 && (at === e || e.contains(at));
   });
-  if (!ok) fails.push(`${selector}: no es pot clicar (tapat o sense mida)`);
+  check(`clic: ${selector}`, ok, true);
 }
 
 /** Deixa el navegador amb un compte i un marcador de mentida, i recarrega. */
@@ -74,7 +91,7 @@ async function seed(page, { player, times, board, favs, prefs }) {
 }
 
 async function main() {
-  const exe = chromePath();
+  const exe = chromeHeadlessPath();
   if (!exe) {
     console.error('No trobe cap Chromium. Executeu `npx playwright install chromium`.');
     process.exit(2);
