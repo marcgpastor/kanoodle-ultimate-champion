@@ -33,6 +33,19 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('punt: encara no l’has jugat', await dotOf(3), 'is-open');
   check('sense punt quan només hi has jugat tu', await dotOf(4), 'cap');
   check('sense punt quan no hi ha jugat ningú', await dotOf(5), 'cap');
+
+  const dotColor = n => page.evaluate(num => {
+    return getComputedStyle(document.querySelector(`.bead[data-n="${num}"] .rivaldot`)).backgroundColor;
+  }, n);
+  check('verd quan el millor temps és teu', await dotColor(1), 'rgb(53, 199, 89)');
+  check('roig quan hi ha temps més ràpids', await dotColor(2), 'rgb(239, 51, 56)');
+  check('groc quan encara no l’has jugat', await dotColor(3), 'rgb(245, 197, 24)');
+  const dotSize = await page.evaluate(() => {
+    const s = getComputedStyle(document.querySelector('.bead .rivaldot'));
+    return [s.width, s.height];
+  });
+  check('el punt fa 9 píxels', dotSize, ['9px', '9px']);
+
   check('la llegenda es veu amb compte', await page.isVisible('#dotkey'), true);
   check('el xip de competició es veu amb compte', await page.isVisible('[data-filter="rival"]'), true);
 

@@ -1,6 +1,6 @@
 /* Service worker: fa que la web tiri sense connexió.
    Puja VERSION quan canviïn els fitxers i els navegadors se'ls tornaran a baixar. */
-const VERSION = 'h492c5e02ac';
+const VERSION = 'h6e15d59ad2';
 const CACHE   = 'kanoodle-' + VERSION;
 
 const ASSETS = [

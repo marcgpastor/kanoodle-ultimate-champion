@@ -12,7 +12,6 @@
   --lime:#98D320;       /* fet / rècord */
   --magenta:#F03BA6;    /* alerta */
   --amber:#F79806;      /* provisional: el taronja de la peça A */
-  --gold:#F5C518;       /* hi tens el millor temps de tots */
 
   /* Colors semàntics: què vol dir el color, no quin és. Són els que canvien
      amb el mode daltònic; la paleta de dalt es queda quieta. */
@@ -21,9 +20,9 @@
   --dim-2d:#00ADEF;        /* el tauler pla, a gràfics i llegendes */
   --dim-3d:#F03BA6;        /* la piràmide, a gràfics i llegendes */
   --chart:#F0E406;         /* barres del repartiment per durada */
-  --rival-lead:#F5C518;    /* el millor temps és teu */
-  --rival-behind:#F79806;  /* hi ha temps més ràpids */
-  --rival-open:#8A7F78;    /* encara no l'has jugat */
+  --rival-lead:#35C759;    /* el millor temps és teu */
+  --rival-behind:#EF3338;  /* hi ha temps més ràpids */
+  --rival-open:#F5C518;    /* encara no l'has jugat */
 
   --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
@@ -176,12 +175,12 @@ button{font:inherit;color:inherit}
 /* estat de competició. Va a l'esquerra perquè l'estrella de favorit ja ocupa
    la dreta, i amb vora fosca perquè es veja també sobre una boleta de color. */
 .rivaldot{
-  width:7px;height:7px;border-radius:50%;display:inline-block;flex:none;
-  box-shadow:0 0 0 1.5px var(--ink)
+  width:9px;height:9px;border-radius:50%;display:inline-block;flex:none;
+  box-shadow:0 0 0 2px var(--ink)
 }
-.rivaldot.is-lead{background:var(--gold)}
-.rivaldot.is-behind{background:var(--amber)}
-.rivaldot.is-open{background:#8A7F78}
+.rivaldot.is-lead{background:var(--rival-lead)}
+.rivaldot.is-behind{background:var(--rival-behind)}
+.rivaldot.is-open{background:var(--rival-open)}
 .bead .rivaldot{position:absolute;top:1px;left:1px;pointer-events:none}
 .dotkey{
   display:flex;flex-wrap:wrap;gap:.2em 1.1em;
