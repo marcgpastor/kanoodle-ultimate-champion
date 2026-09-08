@@ -108,9 +108,18 @@ function gloss(defs) {
 }
 
 /** una boleta: buida, amb peça del diagrama, o fantasma si ve d'una pista */
-function ball(g, cx, cy, r, letter, ghost) {
+function ball(g, cx, cy, r, letter, ghost, id) {
   if (letter === '.') {
-    g.append(svgEl('circle', { cx, cy, r, fill: '#241E1B', stroke: '#3D3532', 'stroke-width': r * .1 }));
+    // un buit del tauler també és una palanca: tocar-lo ensenya la peça que
+    // la solució hi posa. El títol no diu quina: seria dir la resposta.
+    const hole = id == null ? g : svgEl('g', { 'data-hole': id, class: 'hole' });
+    if (hole !== g) {
+      const tip = svgEl('title', {});
+      tip.textContent = 'Ensenya’m què va aquí';
+      hole.append(tip);
+    }
+    hole.append(svgEl('circle', { cx, cy, r, fill: '#241E1B', stroke: '#3D3532', 'stroke-width': r * .1 }));
+    if (hole !== g) g.append(hole);
     return;
   }
   // les boletes de pista van dins d'un grup propi: tocar-les al tauler
@@ -151,7 +160,7 @@ function draw2D(rows, ghosts) {
   rows.forEach((row, r) => [...row].forEach((ch, c) => {
     const id = r * 11 + c;
     const gh = ghosts && ghosts.get(id);
-    ball(g, PAD + c * P + P / 2, PAD + r * P + P / 2, R, gh || ch, !!gh && ch === '.');
+    ball(g, PAD + c * P + P / 2, PAD + r * P + P / 2, R, gh || ch, !!gh && ch === '.', id);
   }));
   svg.append(g);
   return svg;
@@ -176,7 +185,7 @@ function draw3D(layers, ghosts) {
       const geo = tpl.rows[row++];
       [...line].forEach((ch, i) => {
         const gh = ghosts && ghosts.get(id);
-        ball(g, geo[i][0], geo[i][1], geo[i][2], gh || ch, !!gh && ch === '.');
+        ball(g, geo[i][0], geo[i][1], geo[i][2], gh || ch, !!gh && ch === '.', id);
         id++;
       });
     });
@@ -1254,7 +1263,7 @@ function paintHints() {
   $('#hinthide').hidden = shown === 0;
   $('#hintnote').textContent =
     !sol && (current in solutions) ? 'No he sabut resoldre aquest repte.'
-    : shown === 0 ? 'Toca una peça i et diré on va.'
+    : shown === 0 ? 'Toca una peça, o un buit del tauler, i et diré què hi va.'
     : shown >= total ? 'Aquesta és una solució sencera.' + brokenNote(sol)
     : `${shown} ${shown === 1 ? 'peça' : 'peces'} de ${total}.` + brokenNote(sol);
   $$('#lv-pieces .piece').forEach(p => {
@@ -1274,6 +1283,16 @@ function reveal(letters) {
   withSolution(current, sol => {
     if (!sol) return paintHints();
     for (const L of letters) if (sol.pieces.some(p => p.piece === L)) shownHints.add(L);
+    paintHints();
+  });
+}
+
+/** tocar un buit del tauler ensenya la peça sencera que la solució hi posa */
+function revealAt(id) {
+  withSolution(current, sol => {
+    if (!sol) return paintHints();
+    const p = sol.pieces.find(pc => pc.cells.includes(id));
+    if (p) shownHints.add(p.piece);
     paintHints();
   });
 }
@@ -1618,8 +1637,11 @@ function wire() {
   };
 
   $('#lv-diagram').addEventListener('click', e => {
-    const g = e.target.closest && e.target.closest('[data-ghost]');
-    if (g) toggleHint(g.getAttribute('data-ghost'));
+    if (!e.target.closest) return;
+    const g = e.target.closest('[data-ghost]');
+    if (g) return toggleHint(g.getAttribute('data-ghost'));
+    const h = e.target.closest('[data-hole]');
+    if (h) revealAt(Number(h.getAttribute('data-hole')));
   });
 
   $('#hint').onclick    = revealNext;

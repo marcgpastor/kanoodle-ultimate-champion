@@ -35,8 +35,10 @@ fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
   passar-los al davant, i pots engegar-hi una sessió directament.
 - **Pistes**: si t'encalles, toca una peça i te la dibuixa al lloc que li toca,
   amb contorn de punts perquè no la confonguis amb el diagrama original. També
-  pots demanar-ne una i prou (comença per les peces amb menys llocs possibles)
-  o la solució sencera.
+  va al revés: toca un buit del tauler i et surt la peça que hi va. Tornar a
+  tocar-la, tant al tauler com a la llista, l'amaga. I si ho prefereixes, pots
+  demanar una pista i prou (comença per les peces amb menys llocs possibles) o
+  la solució sencera.
 - **Estadístiques**: progrés 2D/3D, activitat de les últimes 12 setmanes,
   tots els intents al llarg del temps, repartiment per durada i els reptes que
   se t'han donat millor i pitjor.

@@ -295,6 +295,11 @@ button{font:inherit;color:inherit}
 .diagram svg{display:block;width:100%;height:auto}
 .diagram .ghost{cursor:pointer}
 .diagram .ghost:hover circle:last-of-type{fill-opacity:.62}
+/* els buits també es poden tocar. S'encén només la boleta que hi ha sota el
+   cursor, mai la peça sencera: això últim seria dir la resposta abans d'hora. */
+.diagram .hole{cursor:pointer}
+.diagram .hole circle{transition:fill .12s,stroke .12s}
+.diagram .hole:hover circle{fill:#332B27;stroke:var(--cyan)}
 .diagram__caption{margin-top:.8em;color:var(--chalk-dim);font-size:.85rem}
 .diagram--3d svg{max-width:min(100%,340px);margin:0 auto}
 
