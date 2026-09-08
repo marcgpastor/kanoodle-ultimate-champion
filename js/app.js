@@ -12,6 +12,17 @@ const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c; if (txt != null) n.textContent = txt; return n; };
 
+// El color viu al CSS i el JS l'hi va a buscar: així el mode daltònic el canvia
+// en un sol lloc. `getComputedStyle` no és gratis i els gràfics en demanen uns
+// quants per pintada, o siga que es desa fins que canvia el mode.
+const colorMemo = new Map();
+const cssVar = name => {
+  if (!colorMemo.has(name))
+    colorMemo.set(name, getComputedStyle(document.documentElement).getPropertyValue(name).trim());
+  return colorMemo.get(name);
+};
+const forgetColors = () => colorMemo.clear();
+
 let DATA = null;
 let DIFF = {};               // reptes -> peces que has de col·locar (1–10)
 let filter = 'all';
@@ -489,11 +500,11 @@ function sparkline(rs) {
                              role: 'img', 'aria-label': 'Evolució dels teus temps en aquest repte' });
   svg.append(svgEl('polyline', {
     points: pts.map((p, i) => `${x(i)},${y(p.t)}`).join(' '),
-    fill: 'none', stroke: '#00ADEF', 'stroke-width': 2,
+    fill: 'none', stroke: cssVar('--dim-2d'), 'stroke-width': 2,
     'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke'
   }));
   pts.forEach((p, i) => svg.append(svgEl('circle', {
-    cx: x(i), cy: y(p.t), r: 3.2, fill: p.t === min ? '#98D320' : '#00ADEF',
+    cx: x(i), cy: y(p.t), r: 3.2, fill: p.t === min ? cssVar('--good') : cssVar('--dim-2d'),
     'vector-effect': 'non-scaling-stroke'
   })));
   return svg;
@@ -659,9 +670,9 @@ function renderStats() {
     let fets = 0;
     for (let n = s.from; n <= s.to; n++) if (done(n)) fets++;
     bars.append(bar((s.origin === 'gen' ? 'Nous ' : 'Reptes ') + s.dim + 'D',
-      fets, s.to - s.from + 1, s.dim === 3 ? '#F03BA6' : '#00ADEF'));
+      fets, s.to - s.from + 1, s.dim === 3 ? cssVar('--dim-3d') : cssVar('--dim-2d')));
   }
-  bars.append(bar('En total', solved2.length + solved3.length, LAST, '#98D320'));
+  bars.append(bar('En total', solved2.length + solved3.length, LAST, cssVar('--good')));
   host.append(card('Progrés', [bars,
     el('p', 'hint', `${rs.length} ${rs.length === 1 ? 'intent cronometrat' : 'intents cronometrats'} en total.`)]));
 
@@ -736,7 +747,7 @@ function heatmap(rs) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     const c = per[dayKey(d)] || 0;
     const dot = el('i');
-    if (c) dot.style.background = `color-mix(in srgb, #98D320 ${Math.round(30 + 70 * c / maxDay)}%, #2C2522)`;
+    if (c) dot.style.background = `color-mix(in srgb, ${cssVar('--good')} ${Math.round(30 + 70 * c / maxDay)}%, #2C2522)`;
     dot.title = `${d.toLocaleDateString('ca-ES')}: ${c} ${c === 1 ? 'intent' : 'intents'}`;
     grid.append(dot);
   }
@@ -744,7 +755,7 @@ function heatmap(rs) {
   legend.append(el('span', null, 'Menys'));
   for (const p of [0, 40, 70, 100]) {
     const i = el('i');
-    i.style.background = p ? `color-mix(in srgb, #98D320 ${p}%, #2C2522)` : '#2C2522';
+    i.style.background = p ? `color-mix(in srgb, ${cssVar('--good')} ${p}%, #2C2522)` : '#2C2522';
     legend.append(i);
   }
   legend.append(el('span', null, 'Més'));
@@ -775,7 +786,7 @@ function evolution(rs) {
   }
   for (const r of rs) {
     svg.append(svgEl('circle', { cx: x(r.d), cy: y(r.t), r: 4,
-      fill: is3D(r.n) ? '#F03BA6' : '#00ADEF', 'fill-opacity': .8 }));
+      fill: is3D(r.n) ? cssVar('--dim-3d') : cssVar('--dim-2d'), 'fill-opacity': .8 }));
   }
   for (const [d, anchor] of [[rs[0].d, 'start'], [rs[rs.length - 1].d, 'end']]) {
     const lab = svgEl('text', { x: anchor === 'start' ? L : W - R, y: H - 6, fill: '#6E635E',
@@ -784,7 +795,7 @@ function evolution(rs) {
     svg.append(lab);
   }
   const legend = el('div', 'chart__legend');
-  for (const [c, t] of [['#00ADEF', '2D'], ['#F03BA6', '3D']]) {
+  for (const [c, t] of [[cssVar('--dim-2d'), '2D'], [cssVar('--dim-3d'), '3D']]) {
     const s = el('span'); const i = el('i'); i.style.background = c;
     s.append(i, document.createTextNode(t)); legend.append(s);
   }
@@ -803,7 +814,7 @@ function histogram(times) {
   const max = Math.max(1, ...counts);
   const box = el('div', 'bars');
   buckets.forEach(([label], i) => box.append(
-    bar(label, counts[i], max, '#F0E406',
+    bar(label, counts[i], max, cssVar('--chart'),
         `${counts[i]} ${counts[i] === 1 ? 'repte' : 'reptes'}`)));
   return [box, el('p', 'hint', 'Segons el millor temps de cada repte.')];
 }

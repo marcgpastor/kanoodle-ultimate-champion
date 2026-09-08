@@ -79,4 +79,13 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('sense compte, xip amagat', await page.isVisible('[data-filter="rival"]'), false);
   check('sense compte, llegenda amagada', await page.isVisible('#dotkey'), false);
   check('sense compte, cap punt', await page.$$eval('.bead .rivaldot', d => d.length), 0);
+
+  // les estadístiques pinten amb el que diu el CSS
+  await seed(page, { times: TIMES });
+  await page.goto((process.env.KANOODLE_URL || 'http://localhost:8123') + '/#stats');
+  await page.waitForSelector('.stats .card');
+  const barColors = await page.$$eval('.bar__fill', bs =>
+    [...new Set(bs.map(b => getComputedStyle(b).backgroundColor))]);
+  check('les barres surten pintades', barColors.length > 0, true);
+  check('cap barra sense color', barColors.includes('rgba(0, 0, 0, 0)'), false);
 };
