@@ -196,4 +196,26 @@ module.exports = async function ({ page, check, tap, seed }) {
     boardTxt.includes('Encara no hi ets'), true);
   check('esborrar no deixa ningú a la taula, encara que sigui vella',
     boardTxt.includes('Marc'), false);
+
+  // i des de l'índex: esborrar tanca la sessió, així que la capçalera no pot
+  // continuar dient «Jugues com a», ni quedar-se el xip ni la llegenda
+  await page.goto(URL + '/');
+  await seed(page, {
+    player: { token: 'fals', id: 1, name: 'Marc' }, times: TIMES, board: BOARD,
+  });
+  check('abans d’esborrar: la capçalera diu qui ets',
+    (await page.textContent('#whoami')).includes('Jugues com a'), true);
+  check('abans d’esborrar: el xip de competició es veu',
+    await page.isVisible('[data-filter="rival"]'), true);
+
+  await acceptConfirms();
+  await tap(page, '#wipe');
+  await restoreConfirms();
+
+  check('esborrar ho diu també a la capçalera',
+    (await page.textContent('#whoami')).includes('Jugues com a'), false);
+  check('esborrar amaga el xip de competició',
+    await page.isVisible('[data-filter="rival"]'), false);
+  check('esborrar amaga la llegenda dels punts',
+    await page.isVisible('#dotkey'), false);
 };

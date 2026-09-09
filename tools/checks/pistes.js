@@ -7,7 +7,10 @@ module.exports = async function ({ page, check }) {
   const holes = () => page.$$eval('#lv-diagram [data-hole]', hs => hs.map(h => Number(h.dataset.hole)));
   const solved = () => page.waitForFunction(
     () => !document.querySelector('#hintnote').textContent.includes('Calculant'),
-    null, { timeout: 25000 });
+    // 60 s i no 25: el primer repte 3D pot passar del parell de segons quan la
+    // màquina va carregada, i amb 25 s la tanda ha petat un parell de vegades
+    // sense que hi haguera res trencat.
+    null, { timeout: 60000 });
   const fire = sel => page.$eval(sel, e => e.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
   for (const [n, kind] of [[3, '2D'], [260, '3D']]) {

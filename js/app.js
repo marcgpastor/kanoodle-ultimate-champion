@@ -1866,7 +1866,10 @@ function wire() {
   $('#wipe').onclick = () => {
     if (!confirm('Segur que vols esborrar tots els temps, els favorits i les sessions? No es pot desfer.')) return;
     store = {}; favs = new Set(); session = null; sessionLog = [];
-    if (compEnabled()) API.logout();
+    // sortir del compte també buida el marcador i canvia la capçalera, el xip
+    // de competició i la llegenda: sense això es quedaven dient que hi jugues
+    if (compEnabled()) { API.logout(); refreshBoard(); }
+    paintWhoami();
     saveTimes(); saveFavs(); saveSession(); saveLog(); repintaVistaActual();
     toast('Tot esborrat.');
   };
