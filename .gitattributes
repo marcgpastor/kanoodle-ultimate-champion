@@ -1,0 +1,4 @@
+# Els finals de línia es desen i es despleguen sempre en Unix.
+# Sense això, amb core.autocrlf el disc i el repositori divergeixen i el
+# segell de sw.js, que resumeix el contingut del disc, es mou tot sol.
+* text=auto eol=lf
