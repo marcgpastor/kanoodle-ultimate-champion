@@ -113,9 +113,9 @@ async function sync(local, full) {
   const addRuns = [];
   for (const puzzle of Object.keys(local.store || {}))
     for (const r of local.store[puzzle])
-      if (!since || r.d > since) addRuns.push([Number(puzzle), r.t, r.d]);
+      if (!since || r.d >= since) addRuns.push([Number(puzzle), r.t, r.d]);
 
-  const addSessions = (local.sessions || []).filter(x => x && (!since || x.startedAt > since));
+  const addSessions = (local.sessions || []).filter(x => x && (!since || x.startedAt >= since));
 
   const body = {
     full: !!full,
@@ -140,6 +140,9 @@ async function sync(local, full) {
   }
 
   if (res.board) write(BKEY, { at: Date.now(), players: res.board.players, times: res.board.times });
+  // L'hora en què va sortir la petició. El que s'apunte més tard no pot ser a la
+  // resposta, i qui la llegeix ho ha de saber per no prendre-ho per esborrat.
+  res.sentAt = startedAt;
   return res;
 }
 

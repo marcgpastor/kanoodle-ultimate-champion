@@ -111,6 +111,9 @@ async function main() {
 
   for (const suite of [require('./checks/competicio'),
                        require('./checks/pistes'),
+                       require('./checks/rellotge'),
+                       require('./checks/sincronitzacio'),
+                       require('./checks/novetats'),
                        require('./checks/daltonic')]) {
     await suite({ page, check, tap, seed });
   }

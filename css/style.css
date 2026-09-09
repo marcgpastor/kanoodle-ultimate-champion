@@ -223,6 +223,9 @@ button{font:inherit;color:inherit}
 }
 .rack__head .beta{font-size:.6rem;padding:.25em .6em;align-self:center}
 .level__title .beta{font-size:.78rem;padding:.35em .75em}
+/* el repte del dia porta el cian d'acció, que és el de la fitxa de la capçalera:
+   així es reconeix d'una vista i no compta com un avís */
+.beta--today{color:var(--ink);background:var(--cyan)}
 
 /* ---------- mode sessió ---------- */
 .dlg{
@@ -322,6 +325,11 @@ button{font:inherit;color:inherit}
   background:color-mix(in srgb, var(--alert) 13%, transparent);
   border-left:3px solid var(--alert);
   padding:.7em .9em;border-radius:0 8px 8px 0;font-size:.9rem;margin-bottom:1em
+}
+/* una advertència que no és cap errata: informa, no crida */
+.level__note--soft{
+  color:var(--chalk-dim);background:rgba(255,255,255,.04);
+  border-left-color:var(--hole-rim)
 }
 .diagram{background:var(--tray);border-radius:var(--radius);padding:clamp(14px,2.6vw,26px)}
 .diagram svg{display:block;width:100%;height:auto}
@@ -451,6 +459,28 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 .times__empty{color:var(--chalk-dim);font-size:.9rem}
 
 /* ---------- els altres jugadors ---------- */
+/* ---------- el repte del dia ----------
+   Va a la capçalera, entre el marcador i els enllaços: és una invitació, no un
+   filtre, i per això té forma de fitxa i no de botó de barra. */
+.daily{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:2px 0 10px;padding:.55em .8em;cursor:pointer;
+  background:var(--tray);border:1px solid var(--hole-rim);border-radius:999px;
+  color:var(--chalk);font:400 .88rem var(--body);text-align:left
+}
+.daily:hover{border-color:var(--cyan)}
+.daily__tag{
+  font:600 .62rem var(--mono);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink);background:var(--cyan);border-radius:999px;padding:.25em .6em
+}
+.daily__n{font:600 .95rem var(--mono)}
+.daily__kind{color:var(--chalk-dim);font-size:.82rem}
+.daily__t{
+  margin-left:auto;font:600 .9rem var(--mono);font-variant-numeric:tabular-nums;
+  color:var(--chalk-dim)
+}
+.daily.is-done .daily__t{color:var(--good)}
+
 .masthead__links{display:flex;gap:16px;flex-wrap:wrap}
 .whoami{color:var(--chalk-dim);font-size:.82rem}
 .whoami b{color:var(--good);font-weight:600}
@@ -484,6 +514,24 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 .standings th.num{font:600 .7rem var(--mono);letter-spacing:.14em}
 .standings tr.is-me td{color:var(--cyan)}
 .standings .crown{color:var(--good)}
+
+/* la fila sencera crida, però qui mana és el botó del nom */
+.standings tr.is-clickable{cursor:pointer}
+.standings tr.is-clickable:hover td{background:rgba(255,255,255,.035)}
+.playerlink{
+  background:none;border:0;padding:0;margin:0;cursor:pointer;font:inherit;color:inherit;
+  text-align:left;text-decoration:underline;text-decoration-color:rgba(255,255,255,.22);
+  text-underline-offset:3px
+}
+.playerlink:hover{color:var(--cyan);text-decoration-color:currentColor}
+.standings tr.is-me .playerlink{color:var(--cyan)}
+.rivals__list .playerlink{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* el teu temps i el seu, l'un al costat de l'altre */
+.vs__t{font:600 .95rem var(--mono);font-variant-numeric:tabular-nums}
+.vs__sep{font:500 .7rem var(--mono);color:var(--chalk-dim)}
+.toplist button:has(.vs__sep){gap:10px}
+.toplist button:has(.vs__sep) .summary__delta{margin-left:auto}
 
 .invite{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.2em}
 .invite input{
@@ -575,11 +623,17 @@ button.piece.is-shown:hover span{color:var(--cyan);font-weight:700}
 /* El contingut va centrat i com a molt 1180px d'ample, així que per damunt
    d'uns 1445px l'interruptor ja queda fora de la columna i no molesta ningú.
    Per davall, la barra de filtres hi arribaria a sota: se li reserva lloc. */
-@media (max-width:1460px){ .controls{padding-right:140px} }
+@media (max-width:1460px){
+  .controls{padding-right:140px}
+  /* la barra de dalt d'una vista també hi arriba per la dreta: la classificació
+     hi té «Actualitza» i se li posava a sota */
+  .levelbar{padding-right:140px}
+}
 @media (max-width:560px){
   .cbswitch__label{display:none}
   .cbswitch{padding:5px 6px}
   .controls{padding-right:78px}
+  .levelbar{padding-right:78px}
 }
 
 /* ---------- peu ----------

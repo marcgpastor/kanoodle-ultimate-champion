@@ -50,6 +50,8 @@ const solutions = {};        // repte -> solució del resolutor (o null)
 const API = root_api();
 function root_api() { return typeof KanoodleAPI !== 'undefined' ? KanoodleAPI : null; }
 let shownHints = new Set();  // lletres de les peces revelades ara mateix
+let shownCells = new Set();  // boletes soltes revelades (les pistes petites)
+let MULTI = new Set();       // reptes que admeten més d'una solució
 let sessionLog = [];         // sessions acabades
 let prefs = { mode: 'up', target: 180000, sound: true, autoTarget: true, cb: false };
 
@@ -60,6 +62,9 @@ const saveLog = () => write(HKEY, sessionLog);
 const savePrefs = () => write(PKEY, prefs);
 
 const runs = n => store[n] || [];
+/** signatura del que hi ha desat, per saber si el que baixa canvia res */
+const runsSig = s => Object.keys(s).sort((a, b) => a - b)
+  .map(p => p + ':' + s[p].map(r => r.d + '@' + r.t).sort().join(',')).join('|');
 const best = n => { const r = runs(n); return r.length ? Math.min(...r.map(x => x.t)) : null; };
 const done = n => runs(n).length > 0;
 const fav  = n => favs.has(n);
@@ -112,6 +117,17 @@ const dayKey = d => {
   const p2 = v => String(v).padStart(2, '0');
   return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`;
 };
+
+/** El repte que toca avui. Surt de la data i prou, o siga que és el mateix per
+    a tothom sense haver-ho de preguntar a cap servidor. Canvia a mitjanit, i qui
+    juga des d'un altre fus horari en pot tenir un altre: és el preu de no
+    dependre de ningú per a saber-ho. */
+function dailyPuzzle(d = new Date()) {
+  const key = dayKey(d);
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  return ((h >>> 0) % LAST) + 1;
+}
 
 /* ---------------- dibuix dels reptes ---------------- */
 
@@ -367,7 +383,24 @@ function renderIndex() {
     host.append(el('p', 'empty', msg));
   }
   renderScoreboard();
+  paintDaily();
   paintSessionButton();
+}
+
+/** el repte del dia, a la capçalera de l'índex */
+function paintDaily() {
+  const n = dailyPuzzle();
+  const b = $('#daily');
+  const t = best(n);
+  b.hidden = false;
+  b.textContent = '';
+  b.append(el('span', 'daily__tag', 'Repte del dia'),
+           el('b', 'daily__n', '№ ' + n),
+           el('span', 'daily__kind', (is3D(n) ? '3D' : '2D') + ' · ' + DIFF[n] +
+              (DIFF[n] === 1 ? ' peça' : ' peces')),
+           el('span', 'daily__t', t === null ? 'pendent' : fmt(t)));
+  b.classList.toggle('is-done', t !== null);
+  b.title = 'El repte que toca avui. És el mateix per a tothom i canvia a mitjanit.';
 }
 
 function paintSessionButton() {
@@ -442,6 +475,8 @@ function openLevel(n, push = true) {
   $('#lv-kind').textContent = is3D(n) ? '3D' : '2D';
   $('#lv-diff').textContent = `${DIFF[n]} ${DIFF[n] === 1 ? 'peça' : 'peces'}`;
   $('#lv-beta').hidden = !isNew(n);
+  $('#lv-daily').hidden = n !== dailyPuzzle();
+  $('#lv-multi').hidden = !MULTI.has(n);
   document.title = `Repte ${n} — Kanoodle Ultimate Champion`;
   paintFav();
 
@@ -450,6 +485,7 @@ function openLevel(n, push = true) {
   if (note) $('#lv-note').textContent = note;
 
   shownHints = new Set();
+  shownCells = new Set();
   paintDiagram();
 
   $('#lv-caption').hidden = !is3D(n);
@@ -579,6 +615,32 @@ function paintClock() {
   $('#save').disabled = elapsed === 0 || over;
 }
 
+let wake = null;
+
+/** Que la pantalla no s'apague amb el rellotge en marxa. Al mòbil jugues amb les
+    mans plenes de boletes i ningú no toca el vidre durant minuts sencers. El
+    navegador el deixa anar tot sol quan amagues la pestanya, i per això el
+    tornem a demanar en tornar-hi. */
+async function keepAwake(on) {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    if (on) {
+      if (wake) return;
+      wake = await navigator.wakeLock.request('screen');
+      wake.addEventListener('release', () => { wake = null; });
+    } else if (wake) {
+      const w = wake; wake = null; await w.release();
+    }
+  } catch { wake = null; }
+}
+
+/** el final del compte enrere: so i, si el trasto en sap, vibració. La vibració
+    no mira `prefs.sound` a posta, que és justament l'avís per a qui el té llevat. */
+function alarm() {
+  try { if (navigator.vibrate) navigator.vibrate([220, 120, 220, 120, 440]); } catch { /* res */ }
+  beep();
+}
+
 // setInterval i no requestAnimationFrame: així el compte enrere també salta
 // quan la pestanya està en segon pla (rAF s'hi atura).
 function tick() {
@@ -587,7 +649,7 @@ function tick() {
     elapsed = target;
     stopTimer();
     paintClock();
-    beep();
+    alarm();
     return;
   }
   paintClock();
@@ -595,6 +657,8 @@ function tick() {
 
 function startTimer() {
   if (prefs.mode === 'down' && remaining() === 0) return;
+  primeAudio();
+  keepAwake(true);
   t0 = performance.now() - elapsed;
   running = true;
   $('.clock').classList.add('is-running');
@@ -605,6 +669,7 @@ function startTimer() {
 
 function stopTimer() {
   clearInterval(ticker);
+  keepAwake(false);
   ticker = 0; running = false;
   $('.clock').classList.remove('is-running');
   $('#startstop').textContent = elapsed ? 'Continua' : 'Comença';
@@ -639,7 +704,10 @@ function setTarget(ms, manual = true) {
   if (manual) { prefs.target = target; savePrefs(); }
   $('#targetlabel').textContent = fmt(target, false);
   $$('#presets button').forEach(b => b.classList.toggle('is-on', Number(b.dataset.ms) === target));
-  resetTimer();
+  // Només posem el rellotge a zero quan no hi ha res a perdre: tocar ±10 s amb el
+  // compte enrere en marxa esborrava la volta sense dir-ne res.
+  if (running || elapsed > 0) paintClock();
+  else resetTimer();
 }
 
 /** els xips d'objectiu; el primer és el teu rècord d'aquest repte, si en tens */
@@ -669,10 +737,22 @@ function paintAutoTarget() {
   $('#autotarget').setAttribute('aria-pressed', String(prefs.autoTarget));
 }
 
+/** Obre el context d'àudio ara que hi ha un clic al davant. L'alarma sona fora
+    de cap gest de l'usuari, i un context obert en aquell moment es queda suspès
+    a uns quants navegadors (el Safari de l'iPhone sobretot): llavors no sona res. */
+function primeAudio() {
+  if (!prefs.sound) return null;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  } catch { return null; }
+}
+
 function beep() {
   if (!prefs.sound) return;
   try {
-    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    if (!primeAudio()) return;
     [0, .28, .56].forEach(off => {
       const o = audio.createOscillator(), g = audio.createGain();
       o.type = 'square'; o.frequency.value = 880;
@@ -721,7 +801,11 @@ function renderStats() {
     el('p', 'hint', `${rs.length} ${rs.length === 1 ? 'intent cronometrat' : 'intents cronometrats'} en total.`)]));
 
   /* 2 — activitat dels últims 3 mesos */
-  host.append(card('Activitat · 12 setmanes', heatmap(rs)));
+  const rx = streaks(rs);
+  host.append(card('Activitat · 12 setmanes', [...heatmap(rs), el('p', 'hint',
+    rx.now
+      ? `Ratxa actual: ${rx.now} ${rx.now === 1 ? 'dia' : 'dies'} seguits. La més llarga que has fet: ${rx.best}.`
+      : `Ara mateix no en portes cap. La ratxa més llarga que has fet: ${rx.best} ${rx.best === 1 ? 'dia' : 'dies'}.`)]));
 
   /* 3 — evolució */
   host.append(card('Evolució dels temps', evolution(rs), true));
@@ -736,6 +820,23 @@ function renderStats() {
   const byBest = [...solved2, ...solved3].map(n => ({ n, t: best(n) })).sort((a, b) => a.t - b.t);
   host.append(card('Els teus més ràpids', [toplist(byBest.slice(0, 5))]));
   host.append(card('Els que t’han costat més', [toplist(byBest.slice(-5).reverse())]));
+}
+
+/** dies seguits amb almenys un intent: el que portes ara i el més llarg de tots.
+    La ratxa d'ara compta també si l'últim dia va ser ahir, que si no es trencaria
+    cada matí abans de jugar. */
+function streaks(rs) {
+  const days = [...new Set(rs.map(r => dayKey(r.d)))].sort();
+  if (!days.length) return { now: 0, best: 0 };
+  const asDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  let best = 1, run = 1;
+  for (let i = 1; i < days.length; i++) {
+    run = Math.round((asDate(days[i]) - asDate(days[i - 1])) / 864e5) === 1 ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+  const ultim = days[days.length - 1];
+  const avui = dayKey(new Date()), ahir = dayKey(new Date(Date.now() - 864e5));
+  return { now: (ultim === avui || ultim === ahir) ? run : 0, best };
 }
 
 function sessionList() {
@@ -900,8 +1001,10 @@ function buildBoardIndex() {
   for (const [pz, pid, ms] of b.times) {
     if (!byPuzzle.has(pz)) byPuzzle.set(pz, []);
     byPuzzle.get(pz).push([pid, ms]);
-    if (!byPlayer.has(pid)) byPlayer.set(pid, []);
-    byPlayer.get(pid).push(ms);
+    // per jugador ho guardem per repte i no com una llista solta: la fitxa de
+    // cadascú necessita saber a quin repte va cada temps, no només quants en té
+    if (!byPlayer.has(pid)) byPlayer.set(pid, new Map());
+    byPlayer.get(pid).set(pz, ms);
   }
   for (const list of byPuzzle.values()) list.sort((a, b2) => a[1] - b2[1]);
   return { names, byPuzzle, byPlayer, at: b.at };
@@ -959,6 +1062,7 @@ async function syncNow(opts = {}) {
     if (!$('#view-index').hidden) renderIndex();
     if (current !== null) { paintRivals(); renderTimes(); }
     if (!$('#view-board').hidden) renderBoard();
+    if (!$('#view-player').hidden) { const id = Number(location.hash.slice(9)); if (id) renderPlayer(id); }
     if (loud) toast('Tot al dia.');
   } catch (e) {
     if (loud) toast(e.status === 401 ? 'La teva invitació ja no val.' : 'No he pogut connectar amb el servidor.');
@@ -972,22 +1076,30 @@ async function syncNow(opts = {}) {
 function applyRemote(res) {
   let changed = false;
 
+  // Amb `full`, el servidor porta tots els teus intents, també els que acabes de
+  // pujar en aquesta mateixa petició. El que hi ha ací i allà no, o s'ha esborrat
+  // des d'un altre navegador o no ha passat la validació: en tots dos casos ha de
+  // marxar. Si no, una esborrada no arriba enlloc més i ressuscita al primer
+  // `pushAll`. L'excepció és el que has apuntat mentre durava la petició, que
+  // encara no hi podia ser; `sentAt` és l'hora en què va sortir.
   if (Array.isArray(res.runs)) {
-    const seen = new Map();               // repte -> conjunt de dates que ja tenim
-    for (const p in store) seen.set(p, new Set(store[p].map(r => r.d)));
+    const cut = typeof res.sentAt === 'string' ? res.sentAt : '';
+    const next = {};
     for (const [puzzle, ms, at] of res.runs) {
-      const key = String(puzzle);
-      if (!seen.has(key)) { seen.set(key, new Set()); }
-      if (seen.get(key).has(at)) continue;
-      (store[key] = store[key] || []).push({ t: ms, d: at });
-      seen.get(key).add(at);
-      changed = true;
+      const num = Number(puzzle), r = { t: Number(ms), d: String(at) };
+      if (!okPuzzle(num) || !okRun(r)) continue;
+      (next[num] = next[num] || []).push(r);
     }
-    if (changed) saveTimes();
+    for (const p in store) for (const r of store[p]) {
+      if (!cut || r.d < cut) continue;
+      const list = next[p] = next[p] || [];
+      if (!list.some(x => x.d === r.d)) list.push(r);
+    }
+    if (runsSig(next) !== runsSig(store)) { store = next; saveTimes(); changed = true; }
   }
 
   if (Array.isArray(res.favs)) {
-    const next = new Set(res.favs.map(Number));
+    const next = new Set(res.favs.map(Number).filter(okPuzzle));
     if (next.size !== favs.size || [...next].some(n => !favs.has(n))) {
       favs = next; saveFavs(); changed = true;
     }
@@ -996,7 +1108,9 @@ function applyRemote(res) {
   if (Array.isArray(res.sessions)) {
     const have = new Set(sessionLog.map(s => s.startedAt));
     let added = 0;
-    for (const s of res.sessions) if (s && !have.has(s.startedAt)) { sessionLog.push(s); added++; }
+    for (const s of res.sessions) if (okSession(s) && !have.has(s.startedAt)) {
+      have.add(s.startedAt); sessionLog.push(s); added++;
+    }
     if (added) {
       sessionLog.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
       sessionLog = sessionLog.slice(0, 50);
@@ -1016,6 +1130,9 @@ function paintWhoami() {
   $('[data-filter="rival"]').hidden = !p;
   $('#dotkey').hidden = !p;
   if (!p && filter === 'rival') setFilter('all');
+  $('#storagenote').textContent = p
+    ? 'Els temps, els favorits i les sessions es desen en aquest navegador i al teu compte.'
+    : 'Els temps i els favorits es desen només en aquest navegador.';
   if (!compEnabled()) { box.hidden = true; return; }
   box.hidden = false;
   box.textContent = '';
@@ -1052,6 +1169,7 @@ function repintaVistaActual() {
   if (!$('#view-stats').hidden) renderStats();
   if (current !== null) { renderTimes(); paintPieces(); paintHints(); paintSession(); }   // temps+gràfica, peces, diagrama i barra de sessió
   if (!$('#view-board').hidden) { refreshBoard(); renderBoard(); }
+  if (!$('#view-player').hidden) { const id = Number(location.hash.slice(9)); if (id) renderPlayer(id); }
 }
 
 /** encén o apaga el mode daltònic i torna a pintar el que es veja */
@@ -1076,17 +1194,25 @@ function paintRivals() {
     if (ms !== prev) pos++;
     prev = ms;
     const li = el('li', (pid === p.id ? ' is-me' : '') + (pos === 1 ? ' is-first' : ''));
-    li.append(el('span', 'rivals__pos', String(pos)),
-              el('span', 'rivals__name', idx.names.get(pid) || '?'),
+    li.append(el('span', 'rivals__pos', String(pos)), rivalName(pid, idx),
               el('span', 'rivals__t', fmt(ms)));
     list.append(li);
   }
   for (const [pid, name] of idx.names) {
     if (done.has(pid)) continue;
     const li = el('li', 'is-none' + (pid === p.id ? ' is-me' : ''));
-    li.append(el('span', 'rivals__pos', '·'), el('span', 'rivals__name', name), el('span', 'rivals__t', '—'));
+    li.append(el('span', 'rivals__pos', '·'), rivalName(pid, idx), el('span', 'rivals__t', '—'));
     list.append(li);
   }
+}
+
+/** el nom d'un rival, que porta a la seva fitxa */
+function rivalName(pid, idx) {
+  const b = el('button', 'rivals__name playerlink', idx.names.get(pid) || '?');
+  b.type = 'button';
+  b.title = 'Mira la seva fitxa';
+  b.onclick = () => openPlayer(pid);
+  return b;
 }
 
 /** la taula general */
@@ -1109,7 +1235,7 @@ function renderBoard() {
   }
 
   const rows = [...idx.names].map(([id, name]) => {
-    const times = idx.byPlayer.get(id) || [];
+    const times = [...(idx.byPlayer.get(id) || new Map()).values()];
     const total = times.reduce((a, b) => a + b, 0);
     return { id, name, count: times.length, wins: wins.get(id) || 0, avg: times.length ? total / times.length : null };
   }).sort((a, b) => b.wins - a.wins || b.count - a.count || (a.avg ?? 9e9) - (b.avg ?? 9e9));
@@ -1122,9 +1248,17 @@ function renderBoard() {
   const thead = el('thead'); thead.append(head); table.append(thead);
   const body = el('tbody');
   rows.forEach((r, i) => {
-    const tr = el('tr', r.id === p.id ? 'is-me' : '');
+    const tr = el('tr', 'is-clickable' + (r.id === p.id ? ' is-me' : ''));
+    // la fila sencera és clicable per comoditat, però qui hi ha de picar de veres
+    // és el botó del nom: així també s'hi arriba amb el tabulador
+    tr.onclick = e => { if (!e.target.closest('button')) openPlayer(r.id); };
     tr.append(el('td', null, String(i + 1)));
-    const nameCell = el('td', null, r.name);
+    const nameCell = el('td');
+    const link = el('button', 'playerlink', r.name);
+    link.type = 'button';
+    link.title = `Mira la fitxa de ${r.name}`;
+    link.onclick = () => openPlayer(r.id);
+    nameCell.append(link);
     if (i === 0 && r.wins) nameCell.append(el('span', 'crown', ' ★'));
     tr.append(nameCell);
     tr.append(el('td', 'num', String(r.count)));
@@ -1134,7 +1268,8 @@ function renderBoard() {
   });
   table.append(body);
   card.append(el('h3', null, 'Classificació general'), table,
-    el('p', 'hint', '«Millors» és a quants reptes tens el temps més ràpid de tots.'));
+    el('p', 'hint', '«Millors» és a quants reptes tens el temps més ràpid de tots. ' +
+       'Toca un nom i te’n surt la fitxa sencera.'));
   host.append(card);
 
   if (idx.at) host.append(el('p', 'hint', 'Última actualització: ' +
@@ -1161,6 +1296,150 @@ function deviceCard() {
   card.append(box);
   card.append(el('p', 'hint', 'És la teva clau: qui el tingui juga com si fos tu. No el publiquis enlloc.'));
   return card;
+}
+
+/* ---------------- la fitxa d'un jugador ---------------- */
+
+/** una llista de reptes amb el teu temps i el seu, l'un al costat de l'altre */
+function vslist(items) {
+  const ol = el('ol', 'toplist');
+  for (const it of items) {
+    const li = el('li');
+    const b = el('button');
+    b.type = 'button';
+    const d = it.mine - it.theirs;
+    b.append(el('span', 'toplist__n', '№ ' + it.n),
+             el('span', 'toplist__kind', is3D(it.n) ? '3D' : '2D'),
+             el('span', 'vs__t', fmt(it.mine)),
+             el('span', 'vs__sep', 'vs'),
+             el('span', 'vs__t', fmt(it.theirs)));
+    const tag = el('span', 'summary__delta ' + (d < 0 ? 'up' : 'down'),
+      d === 0 ? 'clavat' : (d < 0 ? '−' : '+') + fmtDelta(Math.abs(d)));
+    b.append(tag);
+    b.onclick = () => openLevel(it.n);
+    li.append(b);
+    ol.append(li);
+  }
+  return ol;
+}
+
+const mediana = xs => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b), h = s.length >> 1;
+  return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+};
+
+/**
+ * Tot el que se sap d'un jugador surt del marcador, que només porta el seu
+ * millor temps a cada repte: ni intents ni dates. El que es compara amb tu, en
+ * canvi, surt del que tens ací, que va més al dia que el que n'hi haja pujat.
+ */
+function renderPlayer(id) {
+  const host = $('#playerbody');
+  host.textContent = '';
+  const idx = boardIndex();
+  const p = playing();
+  const name = idx && idx.names.get(id);
+  $('#playername').textContent = name || 'Jugador';
+  document.title = (name || 'Jugador') + ' — Kanoodle Ultimate Champion';
+  if (!p) { host.append(el('p', 'empty', 'Encara no hi ets. Obre l’enllaç d’invitació que t’han passat.')); return; }
+  if (!idx || !name) { host.append(el('p', 'empty', 'Aquest jugador ja no hi és. Prova d’actualitzar la classificació.')); return; }
+
+  const jo = id === p.id;
+  const seus = idx.byPlayer.get(id) || new Map();
+  const times = [...seus.values()];
+  const reptes = [...seus.keys()].sort((a, b) => a - b);
+
+  /* 1 — el resum */
+  const wins = reptes.filter(n => { const r = idx.byPuzzle.get(n); return r && r[0][1] === seus.get(n); }).length;
+  const total = times.reduce((a, b) => a + b, 0);
+  const dif = reptes.length ? reptes.reduce((a, n) => a + (DIFF[n] || 0), 0) / reptes.length : null;
+  const top = el('dl', 'summary__top');
+  const item = (label, value) => { const d = el('div'); d.append(el('dd', null, value), el('dt', null, label)); return d; };
+  top.append(item('Reptes fets', `${reptes.length} / ${LAST}`));
+  top.append(item('Millors de tots', String(wins)));
+  top.append(item('Mitjana', times.length ? fmt(total / times.length, false) : '—'));
+  top.append(item('Mediana', times.length ? fmt(mediana(times), false) : '—'));
+  top.append(item('Dificultat mitjana', dif === null ? '—' : dif.toFixed(1).replace('.', ',') + ' peces'));
+  host.append(card(jo ? 'Com vas' : 'Com va ' + name, [top,
+    el('p', 'hint', 'Del marcador compartit només se’n sap el millor temps de cada repte: ni els intents ni quan es van fer.')], true));
+
+  if (!reptes.length) {
+    host.append(card('Encara no hi ha res', [el('p', 'empty', 'Aquest jugador encara no ha desat cap temps.')], true));
+    return;
+  }
+
+  /* 2 — per tanda */
+  const bars = el('div', 'bars');
+  for (const s of SETS) {
+    let fets = 0;
+    for (const n of reptes) if (n >= s.from && n <= s.to) fets++;
+    bars.append(bar((s.origin === 'gen' ? 'Nous ' : 'Reptes ') + s.dim + 'D',
+      fets, s.to - s.from + 1, s.dim === 3 ? cssVar('--dim-3d') : cssVar('--dim-2d')));
+  }
+  host.append(card('Per on va', [bars]));
+
+  /* 3 — repartiment per durada */
+  host.append(card('Quant s’hi acostuma a estar', histogram(times)));
+
+  /* 4 — cara a cara */
+  if (!jo) {
+    const comuns = [];
+    for (const n of reptes) { const meu = best(n); if (meu !== null) comuns.push({ n, mine: meu, theirs: seus.get(n) }); }
+    const guanyes = comuns.filter(c => c.mine < c.theirs);
+    const perds = comuns.filter(c => c.mine > c.theirs);
+    const nomesEll = reptes.filter(n => best(n) === null);
+    const nomesTu = [];
+    for (let n = 1; n <= LAST; n++) if (done(n) && !seus.has(n)) nomesTu.push(n);
+
+    const kids = [];
+    if (comuns.length) {
+      const b = el('div', 'bars');
+      b.append(bar('Hi vas al davant', guanyes.length, comuns.length, cssVar('--rival-lead'),
+        `${guanyes.length} de ${comuns.length}`));
+      b.append(bar('Hi va al davant', perds.length, comuns.length, cssVar('--rival-behind'),
+        `${perds.length} de ${comuns.length}`));
+      const empats = comuns.length - guanyes.length - perds.length;
+      kids.push(b);
+      kids.push(el('p', 'hint', `Coincidiu en ${comuns.length} ${comuns.length === 1 ? 'repte' : 'reptes'}` +
+        (empats ? `, ${empats} dels quals ${empats === 1 ? 'clavat' : 'clavats'}` : '') + '.'));
+    } else {
+      kids.push(el('p', 'empty', 'Encara no heu jugat cap repte tots dos.'));
+    }
+    host.append(card('Cara a cara', kids, true));
+
+    if (perds.length) {
+      const pitjors = [...perds].sort((a, b) => (b.mine - b.theirs) - (a.mine - a.theirs)).slice(0, 5);
+      host.append(card('On et treu més avantatge', [vslist(pitjors),
+        el('p', 'hint', 'El teu temps primer, el seu després.')], true));
+    }
+    if (guanyes.length) {
+      const millors = [...guanyes].sort((a, b) => (a.mine - a.theirs) - (b.mine - b.theirs)).slice(0, 5);
+      host.append(card('On li’n treus més', [vslist(millors),
+        el('p', 'hint', 'El teu temps primer, el seu després.')], true));
+    }
+    if (nomesEll.length) {
+      host.append(card(`Els que ha fet ${name} i tu no · ${nomesEll.length}`,
+        [toplist(nomesEll.slice(0, 8).map(n => ({ n, t: seus.get(n) })))]));
+    }
+    if (nomesTu.length) {
+      host.append(card(`Els que has fet tu i ${name} no · ${nomesTu.length}`,
+        [toplist(nomesTu.slice(0, 8).map(n => ({ n, t: best(n) })))]));
+    }
+  }
+
+  /* 5 — els seus extrems */
+  const perTemps = reptes.map(n => ({ n, t: seus.get(n) })).sort((a, b) => a.t - b.t);
+  host.append(card(jo ? 'Els teus més ràpids' : 'Els seus més ràpids', [toplist(perTemps.slice(0, 5))]));
+  host.append(card('Els que li han costat més', [toplist(perTemps.slice(-5).reverse())]));
+}
+
+function openPlayer(id, push = true) {
+  if (current !== null) { stopTimer(); current = null; }
+  renderPlayer(id);
+  show('player');
+  if (push && location.hash !== '#jugador=' + id) location.hash = '#jugador=' + id;
+  window.scrollTo(0, 0);
 }
 
 /* ---------------- invitacions ---------------- */
@@ -1281,13 +1560,15 @@ function getWorker() {
     };
     worker.onerror = () => {
       worker = null;
-      for (const [id, cb] of pending) { pending.delete(id); cb(null); }
+      for (const [id, cb] of pending) { pending.delete(id); cb(null, true); }
     };
   } catch (e) { worker = null; }
   return worker;
 }
 
-/** Demana la solució al fil de càlcul; si no n'hi ha, la fa aquí mateix. */
+/** Demana la solució al fil de càlcul; si no n'hi ha, la fa aquí mateix.
+    El segon argument del retorn diu si s'ha acabat el temps d'espera, que no és
+    el mateix que no tenir solució: allò es pot tornar a provar i això no. */
 function askSolver(n, done) {
   const grid = layout(n), dim = is3D(n) ? 3 : 2;
   const w = getWorker();
@@ -1295,26 +1576,36 @@ function askSolver(n, done) {
     const id = ++seq;
     pending.set(id, done);
     // si el fil de càlcul es queda mut, no deixem els botons penjats
-    setTimeout(() => { if (pending.delete(id)) done(null); }, 20000);
+    setTimeout(() => { if (pending.delete(id)) done(null, true); }, 20000);
     w.postMessage({ id, grid, dim, shapes: DATA.shapes, sizes: DATA.sizes });
     return;
   }
   setTimeout(() => {
     let r = null;
     try { r = KanoodleSolver.solve(grid, dim, DATA.shapes, DATA.sizes); } catch (e) { r = null; }
-    done(r && r.ok ? r : null);
+    done(r && r.ok ? r : null, false);
   }, 30);
 }
+
+// Quants càlculs hi ha en vol. Els botons de pista són els mateixos per a tots
+// els reptes, o siga que només es poden despenjar quan no en queda cap: si no,
+// canviar de repte enmig d'un càlcul els deixava apagats al repte nou.
+let solving = 0;
 
 function withSolution(n, cb) {
   if (n in solutions) return cb(solutions[n]);
   const btns = $$('.hintbar .btn');
+  solving++;
   btns.forEach(b => b.dataset.busy = '1');
   $('#hintnote').textContent = 'Calculant la solució…';
-  askSolver(n, res => {
-    solutions[n] = res;
-    btns.forEach(b => delete b.dataset.busy);
-    if (current === n) cb(res);
+  askSolver(n, (res, timedOut) => {
+    // un temps d'espera exhaurit no es desa: si es desara, el repte es quedaria
+    // dient «no l'he sabut resoldre» fins que recarregues la pàgina
+    if (!timedOut) solutions[n] = res;
+    if (--solving === 0) btns.forEach(b => delete b.dataset.busy);
+    if (current !== n) return;
+    if (timedOut) { paintHints(); toast('El càlcul ha trigat massa. Torna-ho a provar.'); return; }
+    cb(res);
   });
 }
 
@@ -1322,10 +1613,21 @@ const ghostMap = () => {
   const sol = solutions[current];
   const m = new Map();
   if (!sol) return m;
-  for (const p of sol.pieces)
-    if (shownHints.has(p.piece)) for (const c of p.cells) m.set(c, p.piece);
+  for (const p of sol.pieces) {
+    if (shownHints.has(p.piece)) { for (const c of p.cells) m.set(c, p.piece); continue; }
+    for (const c of p.cells) if (shownCells.has(c)) m.set(c, p.piece);
+  }
   return m;
 };
+
+/** boletes revelades soltes que encara no formen part de cap peça sencera */
+function looseBalls(sol) {
+  if (!sol || !shownCells.size) return 0;
+  let n = 0;
+  for (const p of sol.pieces)
+    if (!shownHints.has(p.piece)) for (const c of p.cells) if (shownCells.has(c)) n++;
+  return n;
+}
 
 function paintDiagram() {
   const box = $('#lv-diagram');
@@ -1339,15 +1641,22 @@ function paintHints() {
   const sol = solutions[current];
   const total = sol ? sol.pieces.length : 0;
   const shown = shownHints.size;
+  const soltes = looseBalls(sol);
+  const tot = !!sol && shown >= total;
+  const compte = shown && soltes
+    ? `${shown} ${shown === 1 ? 'peça' : 'peces'} de ${total} i ${soltes} ${soltes === 1 ? 'boleta solta' : 'boletes soltes'}.`
+    : shown ? `${shown} ${shown === 1 ? 'peça' : 'peces'} de ${total}.`
+    : `De moment, ${soltes} ${soltes === 1 ? 'boleta solta' : 'boletes soltes'}.`;
   $('#hint').textContent = shown ? 'Una altra pista' : 'Dona’m una pista';
-  $('#hint').hidden = !!sol && shown >= total;
-  $('#hintall').hidden = !!sol && shown >= total;
-  $('#hinthide').hidden = shown === 0;
+  $('#hint').hidden = tot;
+  $('#hintone').hidden = tot;
+  $('#hintall').hidden = tot;
+  $('#hinthide').hidden = shown === 0 && soltes === 0;
   $('#hintnote').textContent =
     !sol && (current in solutions) ? 'No he sabut resoldre aquest repte.'
-    : shown === 0 ? 'Toca una peça, o un buit del tauler, i et diré què hi va.'
-    : shown >= total ? 'Aquesta és una solució sencera.' + brokenNote(sol)
-    : `${shown} ${shown === 1 ? 'peça' : 'peces'} de ${total}.` + brokenNote(sol);
+    : shown === 0 && !soltes ? 'Toca una peça, o un buit del tauler, i et diré què hi va.'
+    : tot ? 'Aquesta és una solució sencera.' + brokenNote(sol)
+    : compte + brokenNote(sol);
   $$('#lv-pieces .piece').forEach(p => {
     const on = shownHints.has(p.dataset.piece);
     p.classList.toggle('is-shown', on);
@@ -1379,15 +1688,33 @@ function revealAt(id) {
   });
 }
 
-/** tocar una peça la mostra; tornar-la a tocar l'amaga */
+/** tocar una peça la mostra sencera; tornar-la a tocar l'amaga, boletes soltes
+    incloses, que si no en quedarien de despenjades pel tauler */
 function toggleHint(L) {
   withSolution(current, sol => {
     if (!sol) return paintHints();
-    if (shownHints.has(L)) shownHints.delete(L);
-    else if (sol.pieces.some(p => p.piece === L)) shownHints.add(L);
+    const p = sol.pieces.find(x => x.piece === L);
+    if (!p) return paintHints();
+    if (shownHints.has(L)) { shownHints.delete(L); for (const c of p.cells) shownCells.delete(c); }
+    else shownHints.add(L);
     paintHints();
   });
 }
+
+/** La pista més petita que hi ha: una sola boleta de la peça que toca. Serveix
+    per a desencallar-se sense que et donen la peça feta. */
+const revealBall = () => withSolution(current, sol => {
+  if (!sol) return paintHints();
+  for (const L of sol.order) {
+    if (shownHints.has(L)) continue;
+    const p = sol.pieces.find(x => x.piece === L);
+    const c = p.cells.find(x => !shownCells.has(x));
+    if (c === undefined) shownHints.add(L);          // ja la tens tota, boleta a boleta
+    else shownCells.add(c);
+    break;
+  }
+  paintHints();
+});
 
 const revealNext = () => withSolution(current, sol => {
   if (!sol) return paintHints();
@@ -1529,6 +1856,7 @@ function show(which) {
   $('#view-stats').hidden   = which !== 'stats';
   $('#view-session').hidden = which !== 'session';
   $('#view-board').hidden   = which !== 'board';
+  $('#view-player').hidden  = which !== 'player';
   $('#view-admin').hidden   = which !== 'admin';
 }
 
@@ -1544,6 +1872,13 @@ function backToIndex() {
 function closeLevel() {
   stopTimer();
   backToIndex();
+}
+
+/** Canviar de repte llença el que hi haja al rellotge, i amb les fletxes del
+    teclat és fàcil de fer sense voler. Només preguntem quan hi ha res a perdre. */
+function askLeave() {
+  if (!running && elapsed < 1000) return true;
+  return confirm(`Tens ${fmt(elapsed)} al rellotge d’aquest repte i es perdrà. Vols sortir-ne igualment?`);
 }
 
 function openBoard(push = true) {
@@ -1617,6 +1952,10 @@ function toast(msg) {
 }
 
 function record(ms) {
+  ms = Math.round(ms);
+  // Els mateixos límits que posa l'API. Sense això, un temps absurd es desava
+  // ací, el servidor el descartava en silenci i et quedava en un sol navegador.
+  if (!(ms >= 1 && ms <= MAX_MS)) return toast('El temps ha d’estar entre una mil·lèsima i 24 hores.');
   const inSession = !!session && sessionLevel() === current;
   const prevBest = best(current);
   const isBest = addRun(current, ms);
@@ -1731,22 +2070,25 @@ function wire() {
     if (sol) for (const p of sol.pieces) shownHints.add(p.piece);
     paintHints();
   });
-  $('#hinthide').onclick = () => { shownHints = new Set(); paintHints(); };
+  $('#hintone').onclick   = revealBall;
+  $('#hinthide').onclick = () => { shownHints = new Set(); shownCells = new Set(); paintHints(); };
 
   $('#sessionquit').onclick = () => quitSession();
   $('#sessionskip').onclick = () => sessionAdvance({ n: current, skipped: true });
   $('#sessionback').onclick = backToIndex;
   $('#sessionagain').onclick = () => { backToIndex(); $('#startsession').click(); };
 
+  $('#daily').onclick     = () => openLevel(dailyPuzzle());
+  $('#playerback').onclick = () => openBoard();
   $('#toboard').onclick   = () => openBoard();
   $('#boardback').onclick = backToIndex;
   $('#adminback').onclick = backToIndex;
   $('#boardsync').onclick = () => syncNow({ full: true, loud: true });
   $('#tostats').onclick   = () => openStats();
   $('#statsback').onclick = backToIndex;
-  $('#back').onclick      = closeLevel;
-  $('#prev').onclick      = () => openLevel(current - 1);
-  $('#next').onclick      = () => openLevel(current + 1);
+  $('#back').onclick      = () => { if (askLeave()) closeLevel(); };
+  $('#prev').onclick      = () => { if (askLeave()) openLevel(current - 1); };
+  $('#next').onclick      = () => { if (askLeave()) openLevel(current + 1); };
 
   $('#fav').onclick = () => {
     fav(current) ? favs.delete(current) : favs.add(current);
@@ -1863,25 +2205,14 @@ function wire() {
     }).catch(() => toast('El fitxer no s’ha pogut llegir.'));
     e.target.value = '';
   };
-  $('#wipe').onclick = () => {
-    if (!confirm('Segur que vols esborrar tots els temps, els favorits i les sessions? No es pot desfer.')) return;
-    store = {}; favs = new Set(); session = null; sessionLog = [];
-    // sortir del compte també buida el marcador i canvia la capçalera, el xip
-    // de competició i la llegenda: sense això es quedaven dient que hi jugues
-    if (compEnabled()) { API.logout(); refreshBoard(); }
-    paintWhoami();
-    saveTimes(); saveFavs(); saveSession(); saveLog(); repintaVistaActual();
-    toast('Tot esborrat.');
-  };
-
   document.addEventListener('keydown', e => {
     if (/^(INPUT|TEXTAREA|BUTTON)$/.test(e.target.tagName)) return;
     if (current === null) return;
-    if (e.key === 'Escape')          closeLevel();
+    if (e.key === 'Escape')          { if (askLeave()) closeLevel(); }
     else if (e.key === 'f' || e.key === 'F') $('#fav').click();
     else if (e.key === 'p' || e.key === 'P') { if (!$('#hint').hidden) $('#hint').click(); }
-    else if (e.key === 'ArrowLeft'  && current > 1)   openLevel(current - 1);
-    else if (e.key === 'ArrowRight' && current < LAST) openLevel(current + 1);
+    else if (e.key === 'ArrowLeft'  && current > 1)   { if (askLeave()) openLevel(current - 1); }
+    else if (e.key === 'ArrowRight' && current < LAST) { if (askLeave()) openLevel(current + 1); }
     else if (e.code === 'Space') { e.preventDefault(); running ? stopTimer() : startTimer(); }
   });
 
@@ -1889,22 +2220,44 @@ function wire() {
 
   // en tornar a la pestanya, el rellotge es posa al dia de seguida
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && running) tick();
+    if (document.hidden || !running) return;
+    tick();
+    keepAwake(true);            // amagar la pestanya el deixa anar tot sol
   });
 }
 
 function route() {
   const h = location.hash.slice(1);
   if (h.startsWith('entra=')) return askToJoin(h.slice(6));
-  if (h === 'classificacio') return openBoard(false);
-  if (h === 'invitacions') return openAdmin(false);
-  if (h === 'stats') return openStats(false);
+  // El hash l'acaben de posar les mateixes funcions que obren cada vista: si no
+  // ho mirem, cada clic torna a fer tota la feina una segona vegada (i a la
+  // classificació, això són dues sincronitzacions senceres).
+  if (h.startsWith('jugador=')) {
+    const id = Number(h.slice(8));
+    if (playing() && id) return openPlayer(id, false);
+    return backToIndex();
+  }
+  // dreceres: la instal·lació al mòbil hi entra directament
+  if (h === 'avui' || h === 'atzar') {
+    const n = h === 'avui' ? dailyPuzzle() : 1 + Math.floor(Math.random() * LAST);
+    history.replaceState(null, '', location.pathname + location.search);
+    return openLevel(n);
+  }
+  if (h === 'classificacio') { if ($('#view-board').hidden) openBoard(false); return; }
+  if (h === 'invitacions')   { if ($('#view-admin').hidden) openAdmin(false); return; }
+  if (h === 'stats')         { if ($('#view-stats').hidden) openStats(false); return; }
   if (h === 'sessio') {
+    if (!$('#view-session').hidden) return;
     if (sessionLog.length) return showSummary(sessionLog[0], false);
     return closeLevel();
   }
   const n = Number(h);
-  if (n >= 1 && n <= LAST) return openLevel(n, false);
+  if (n >= 1 && n <= LAST) {
+    // el hash l'acaba de posar openLevel(): sense això, cada navegació tornava a
+    // pintar el diagrama, les peces i els temps una segona vegada
+    if (n === current && !$('#view-level').hidden) return;
+    return openLevel(n, false);
+  }
   closeLevel();
 }
 
@@ -1950,6 +2303,7 @@ fetch('data/puzzles.json')
       { from: 251, to: 500, dim: 3, origin: 'book' },
     ];
     LAST = Math.max(...SETS.map(s => s.to));
+    MULTI = new Set(DATA.multi || []);
     computeDifficulty();
     refreshBoard();
 

@@ -15,6 +15,10 @@ fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
   reptes 3D es mostren capa per capa (1×1 a dalt, 5×5 a la base).
 - **Peces que has de col·locar**: les que no surten al diagrama, amb la seva forma.
 - **Favorits**: marca un repte amb l'estrella (o la tecla `F`) i filtra'ls després.
+- **Repte del dia**: a la capçalera. Surt de la data i prou, o siga que és el
+  mateix per a tothom sense preguntar-ho a cap servidor, i canvia a mitjanit.
+  Qui juga des d'un altre fus horari en pot tenir un altre: és el preu de no
+  dependre de ningú per a saber-ho.
 - **Cronòmetre** amb dècimes o **compte enrere** com el timer del joc: tries
   quant de temps et dones, i quan s'acaba sona una alarma. En compte enrere,
   el temps que es desa és el que has trigat, no el que quedava.
@@ -40,20 +44,26 @@ fulls del quadern: mostra els 500 reptes del quadern (250 en 2D i 250 en 3D) i
   daltonisme roig-verd. Els 12 colors de les peces no es
   toquen: el diagrama s'ha de continuar assemblant a la capsa que tens damunt la
   taula. A canvi, la lletra de cada boleta es fa més gran i amb més contrast.
+- **Solucions múltiples**: 150 dels 500 reptes del quadern n'admeten més d'una, i
+  quan n'obres un t'ho diu. Va bé saber-ho abans de demanar una pista, que te'n
+  donarà una de vàlida i no necessàriament la que tenies al cap.
 - **Pistes**: si t'encalles, toca una peça i te la dibuixa al lloc que li toca,
   amb contorn de punts perquè no la confonguis amb el diagrama original. També
   va al revés: toca un buit del tauler i et surt la peça que hi va. Tornar a
   tocar-la, tant al tauler com a la llista, l'amaga. I si ho prefereixes, pots
-  demanar una pista i prou (comença per les peces amb menys llocs possibles) o
-  la solució sencera.
-- **Estadístiques**: progrés 2D/3D, activitat de les últimes 12 setmanes,
-  tots els intents al llarg del temps, repartiment per durada i els reptes que
-  se t'han donat millor i pitjor.
+  demanar una pista i prou (comença per les peces amb menys llocs possibles), una
+  sola boleta si no en vols tanta, o la solució sencera.
+- **Estadístiques**: progrés 2D/3D, activitat de les últimes 12 setmanes amb la
+  ratxa de dies seguits, tots els intents al llarg del temps, repartiment per
+  durada i els reptes que se t'han donat millor i pitjor.
 - **Dificultat**: cada repte porta comptades les peces que has de col·locar
   (d'1 a 10). A l'índex es veu com un anell més clar o més fosc a cada boleta,
   i es pot filtrar per trams.
+- **Pensada per a jugar-hi amb les mans plenes**: mentre el rellotge corre, la
+  pantalla no s'apaga, i el final del compte enrere també vibra, no només sona.
 - **Funciona sense connexió**: es pot instal·lar a la pantalla d'inici del
-  mòbil i tira sense dades. Les tipografies també van des del repositori, així
+  mòbil i tira sense dades. Des de la icona instal·lada s'entra directament al
+  repte del dia, a un a l'atzar o a les estadístiques. Les tipografies també van des del repositori, així
   que la pàgina no fa cap petició a fora.
 
 Els temps, els favorits, les sessions i les preferències del rellotge es desen
@@ -72,7 +82,9 @@ s'envia res enlloc i la web no fa cap petició fora del seu propi domini.
 
 Les vistes tenen adreça pròpia: `#147` obre el repte 147, `#stats` les
 estadístiques, `#sessio` el resum de l'última sessió, `#classificacio` la de la
-classificació i `#invitacions` el panell per convidar gent.
+classificació, `#jugador=3` la fitxa d'un jugador i `#invitacions` el panell per
+convidar gent. `#avui` i `#atzar` són dreceres: obren el repte del dia o un a
+l'atzar i et deixen a la seva adreça.
 
 ## Fer-la anar en local
 
@@ -98,9 +110,11 @@ HTML, CSS i JS plans.
 
 ## Comptes: els teus temps et segueixen
 
-Opcional i apagat per defecte. Mentre `BASE` estigui buit a dalt de
-`js/api.js`, tot això queda amagat i la web es comporta exactament com si no
-existís.
+Opcional. Mentre `BASE` estigui buit a dalt de `js/api.js`, tot això queda
+amagat i la web es comporta exactament com si no existís. En aquest repositori
+`BASE` **no** està buit: hi ha la URL d'un Worker ja en marxa, així que qui el
+bifurqui i no la canviï apuntarà a un servidor que no és seu (i que el
+rebutjarà, perquè el seu domini no és a `ALLOWED_ORIGINS`).
 
 Si l'engegues, cada jugador té un compte i **les seves dades el segueixen d'un
 navegador a un altre**: temps (tots els intents, no només el millor), favorits
@@ -109,11 +123,20 @@ l'ordinador; el que facis en qualsevol dels dos acaba als altres.
 
 Com que cada intent es distingeix per la seva data, els navegadors es fusionen
 sols: no hi ha conflictes a resoldre ni s'esborra res per haver jugat en dos
-llocs. Si esborres un temps, s'esborra a tot arreu.
+llocs. Si esborres un temps, s'esborra a tot arreu: en una sincronització sencera
+el servidor mana, i el que ell ja no té marxa també d'aquí (llevat del que hagis
+apuntat mentre la petició era en vol, que encara no hi podia ser).
 
 De propina, hi ha una classificació compartida amb el millor temps de cada
 jugador a cada repte: a la vista general, al costat de cada repte, i resumida a
 cada boleta de l'índex amb el punt de color que s'explica més amunt.
+
+Tocant un nom de la taula (o de la llista de rivals d'un repte) s'obre la seva
+fitxa: per on va, com reparteix els temps, i el cara a cara amb tu — en quants
+reptes coincidiu, qui hi va al davant a cadascun, on et treu més avantatge i on
+n'hi treus tu, què ha fet ell que tu no i a l'inrevés. Tot això surt del
+marcador, que només porta el millor temps de cada repte: d'un altre jugador no
+se'n saben ni els intents ni les dates.
 
 **S'hi entra només amb invitació.** No hi ha cap formulari de registre: tu
 crees una invitació des de `#invitacions` (que et demana la clau
@@ -171,7 +194,12 @@ Regenerar-ho (cal `poppler-utils`):
 
 ```bash
 cd tools && python3 run.py && python3 shapes.py && python3 validate.py && python3 build_data.py
+node uniqueness.js
 ```
+
+`uniqueness.js` compta quantes solucions té cada repte i deixa a `puzzles.json`
+la llista dels que n'admeten més d'una, que és el que fa sortir l'avís dins del
+repte. Va al final perquè `build_data.py` refà el fitxer sencer.
 
 `validate.py` comprova que a cada repte cada peça hi surti amb el nombre exacte
 de boletes i, en 2D, que les boletes d'una mateixa peça estiguin connectades.
@@ -268,6 +296,7 @@ js/api.js           client de la classificació (apagat si BASE és buit)
 api/                Cloudflare Worker + D1: usuaris i temps compartits
 data/puzzles.json   els 700 reptes, formes de les peces i geometria del 3D
 tools/generate.js   fabrica les dues tandes de reptes nous
+tools/uniqueness.js compta les solucions de cada repte i les desa a puzzles.json
 tools/stamp-sw.js   posa a sw.js la versió que toca abans de cada commit
 tools/check-ui.js   banc de comprovacions de la interfície (Playwright)
 tools/checks/       les comprovacions que executa tools/check-ui.js

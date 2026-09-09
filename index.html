@@ -39,6 +39,7 @@
     </div>
     <div class="masthead__meta">
       <dl class="scoreboard" id="scoreboard"></dl>
+      <button type="button" class="daily" id="daily" hidden></button>
       <div class="masthead__links">
         <button type="button" id="tostats" class="link">Mira les estadístiques &rarr;</button>
         <button type="button" id="toboard" class="link" hidden>Classificació &rarr;</button>
@@ -164,9 +165,12 @@
         <span class="level__diff" id="lv-diff"></span>
         <span class="beta" id="lv-beta" hidden
               title="Repte fet per ordinador, no del quadern: comprovat pel resolutor però encara sense rodar. Si en trobes cap de rar, avisa.">beta</span>
+        <span class="beta beta--today" id="lv-daily" hidden
+              title="El repte que toca avui. És el mateix per a tothom i canvia a mitjanit.">repte del dia</span>
         <button type="button" id="fav" class="fav" aria-pressed="false" title="Marca'l com a favorit">★</button>
       </h2>
       <p class="level__note" id="lv-note" hidden></p>
+      <p class="level__note level__note--soft" id="lv-multi" hidden>Aquest repte admet més d’una solució. Si demanes una pista, te’n donarà una de vàlida, que no té per què ser la que tenies al cap.</p>
       <div class="diagram" id="lv-diagram"></div>
       <p class="diagram__caption" id="lv-caption" hidden></p>
 
@@ -174,6 +178,7 @@
         <h3>Peces que has de col·locar <span id="lv-pcount"></span></h3>
         <div class="pieces__grid" id="lv-pieces"></div>
         <div class="hintbar" id="hintbar">
+          <button type="button" id="hintone" class="btn btn--ghost">Només una boleta</button>
           <button type="button" id="hint" class="btn btn--ghost">Dona'm una pista</button>
           <button type="button" id="hintall" class="btn btn--ghost">Ensenya-m'ho tot</button>
           <button type="button" id="hinthide" class="btn btn--ghost" hidden>Amaga les pistes</button>
@@ -256,6 +261,15 @@
   <div id="boardbody"></div>
 </div>
 
+<!-- ============ FITXA D'UN JUGADOR ============ -->
+<div id="view-player" class="view" hidden>
+  <div class="levelbar">
+    <button type="button" id="playerback" class="btn btn--ghost">&larr;&nbsp;Classificació</button>
+  </div>
+  <h2 class="stats__title" id="playername"></h2>
+  <div class="stats" id="playerbody"></div>
+</div>
+
 <!-- ============ INVITACIONS ============ -->
 <div id="view-admin" class="view" hidden>
   <div class="levelbar">
@@ -276,11 +290,10 @@
 
 <!-- ============ PEU ============ -->
 <footer class="colophon">
-  <p>Els temps i els favorits es desen només en aquest navegador.</p>
+  <p id="storagenote">Els temps i els favorits es desen només en aquest navegador.</p>
   <p class="colophon__actions">
     <button type="button" id="export" class="link">Exporta-ho tot</button>
     <button type="button" id="import" class="link">Importa-ho</button>
-    <button type="button" id="wipe" class="link link--danger">Esborra-ho tot</button>
     <a class="link" href="#invitacions" id="adminlink" hidden>Invitacions</a>
   </p>
   <input type="file" id="importfile" accept="application/json" hidden>

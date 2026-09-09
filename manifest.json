@@ -1,7 +1,7 @@
 {
   "name": "Kanoodle Ultimate Champion",
   "short_name": "Kanoodle",
-  "description": "Els 500 reptes del quadern, amb cronòmetre i registre de temps.",
+  "description": "Els 700 reptes — 500 del quadern i 200 de nous — amb cronòmetre i registre de temps.",
   "lang": "ca",
   "start_url": "./",
   "scope": "./",
@@ -12,5 +12,10 @@
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Repte del dia", "short_name": "Repte del dia", "url": "./#avui" },
+    { "name": "Repte a l'atzar", "short_name": "Atzar", "url": "./#atzar" },
+    { "name": "Estadístiques", "short_name": "Estadístiques", "url": "./#stats" }
   ]
 }

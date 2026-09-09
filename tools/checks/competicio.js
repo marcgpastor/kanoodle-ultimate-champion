@@ -17,6 +17,7 @@ const TIMES = {
 };
 
 module.exports = async function ({ page, check, tap, seed }) {
+  const URL = process.env.KANOODLE_URL || 'http://localhost:8123';
   await seed(page, {
     player: { token: 'fals', id: 1, name: 'Marc' }, times: TIMES, board: BOARD,
   });
@@ -119,103 +120,62 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('barra "En total": color de «fet»', await barColor('En total'), 'rgb(152, 211, 32)');
   check('barra "1–2 min": color del gràfic per durada', await barColor('1–2 min'), 'rgb(240, 228, 6)');
 
-  // El peu (amb «Esborra-ho tot») ara es veu des de qualsevol vista, no només
-  // des de l'índex: cal que el clic hi repinti el que hi hagi obert en aquell
-  // moment, no només l'índex de sota. #wipe usa confirm(), que en un navegador
-  // sense caps no té cap diàleg real: l'ignora i torna false. Substituïm
-  // window.confirm només per aquest clic i el desfem tot seguit, perquè no se'l
-  // mengin les properes tandes.
-  const URL = process.env.KANOODLE_URL || 'http://localhost:8123';
-  const acceptConfirms = () => page.evaluate(() => {
-    window.__confirmDeVeres = window.confirm;
-    window.confirm = () => true;
-  });
-  const restoreConfirms = () => page.evaluate(() => {
-    window.confirm = window.__confirmDeVeres;
-    delete window.__confirmDeVeres;
-  });
-
-  // venim de '#stats': cal tornar a l'índex abans de seed(), perquè el reload
-  // no torna a cridar renderIndex() (route() només pinta la vista de l'URL)
-  // i el «.bead» que espera seed() no hi arribaria mai.
+  // La fitxa d'un jugador: la taula hi porta i el que hi surt ve del marcador.
+  // Venim de '#stats', i seed() espera un '.bead': cal tornar a l'índex primer,
+  // que route() només pinta la vista que digui l'URL.
   await page.goto(URL + '/');
-  await seed(page, {
-    times: { 1: [{ t: 60000, d: '2026-09-01T10:00:00.000Z' }, { t: 50000, d: '2026-09-02T10:00:00.000Z' }] },
-  });
-  // canviar només el hash no recarrega el document (el navegador ho tracta com
-  // a navegació dins la mateixa pàgina), i llavors app.js no rellegeix res de
-  // localStorage: cal fixar el hash i fer un reload de veres perquè arrenqui
-  // amb la sessió ja present.
-  await page.evaluate(() => {
-    localStorage.setItem('kanoodle.session.v1', JSON.stringify({
-      ids: [1, 2], idx: 0, results: [], startedAt: new Date().toISOString(),
-    }));
-    location.hash = '#1';
-  });
-  await page.reload();
-  await page.waitForSelector('#lv-times li');
-  check('abans d’esborrar: hi ha temps al nivell obert',
-    await page.$$eval('#lv-times li', li => li.length), 2);
-  check('abans d’esborrar: la sessió es veu',
-    await page.isVisible('#sessionbar'), true);
-  check('abans d’esborrar: comptador de sessió',
-    await page.textContent('#sessioncounter'), '1 de 2');
-
-  await acceptConfirms();
-  await tap(page, '#wipe');
-  await restoreConfirms();
-
-  check('esborrar buida la llista de temps sense navegar enlloc',
-    await page.$$eval('#lv-times li', li => li.map(x => x.textContent)),
-    ['Cap temps desat encara.']);
-  check('esborrar treu el gràfic d’evolució del nivell obert',
-    await page.$$('#lv-spark polyline'), []);
-  check('esborrar amaga la barra de sessió perquè ja no n’hi ha',
-    await page.isVisible('#sessionbar'), false);
-  check('esborrar torna a mostrar la barra normal del nivell',
-    await page.isVisible('#levelbar'), true);
-
-  // el mateix, però amb la classificació oberta: esborrar tanca la sessió amb
-  // el servidor (API.logout()) i, si no repintem, la taula es queda ensenyant
-  // algú que ja no ha entrat enlloc
-  await page.goto(URL + '/');   // venim de '#1': mateix motiu que abans
   await seed(page, {
     player: { token: 'fals', id: 1, name: 'Marc' }, times: TIMES, board: BOARD,
   });
   await page.goto(URL + '/#classificacio');
   await page.waitForSelector('#boardbody table');
-  check('abans d’esborrar: hi surts a la classificació',
-    (await page.textContent('#boardbody')).includes('Marc'), true);
+  check('els noms de la taula són clicables',
+    await page.$$eval('#boardbody .playerlink', bs => bs.map(b => b.textContent).sort()),
+    ['Anna', 'Marc', 'Pau']);
 
-  await acceptConfirms();
-  await tap(page, '#wipe');
-  await restoreConfirms();
+  // manen els «millors»: Anna en té 4 i jo 2, o siga que ella encapçala
+  check('la taula ordena pels millors temps',
+    await page.$$eval('#boardbody tbody .playerlink', bs => bs.map(b => b.textContent)),
+    ['Anna', 'Marc', 'Pau']);
 
-  const boardTxt = await page.textContent('#boardbody');
-  check('esborrar treu la classificació de sobre: ja no hi ets',
-    boardTxt.includes('Encara no hi ets'), true);
-  check('esborrar no deixa ningú a la taula, encara que sigui vella',
-    boardTxt.includes('Marc'), false);
+  await page.$eval('#boardbody tbody tr:nth-child(2) .playerlink', b => b.click());
+  await page.waitForTimeout(200);
+  check('obre la fitxa', await page.isVisible('#view-player'), true);
+  check('i el hash la sap dir', await page.evaluate(() => location.hash), '#jugador=1');
+  check('amb el nom al títol', await page.textContent('#playername'), 'Marc');
+  check('la teva fitxa no es compara amb tu mateix',
+    (await page.textContent('#playerbody')).includes('Cara a cara'), false);
 
-  // i des de l'índex: esborrar tanca la sessió, així que la capçalera no pot
-  // continuar dient «Jugues com a», ni quedar-se el xip ni la llegenda
+  // Anna té temps als reptes 1, 2, 3, 260 i 520; jo tinc l'1, el 2 i el 4.
+  // Coincidim en dos: el 2 me'l guanya (1:30 contra 2:00) i l'1 li'l guanye jo.
+  await page.goto(URL + '/#jugador=2');
+  await page.waitForSelector('#playerbody .card');
+  check('la fitxa es pot obrir per URL', await page.textContent('#playername'), 'Anna');
+  const resum = () => page.$$eval('#playerbody .summary__top div',
+    ds => ds.map(d => [d.querySelector('dt').textContent, d.querySelector('dd').textContent]));
+  check('reptes fets', (await resum()).find(r => r[0] === 'Reptes fets')[1], '5 / 700');
+  check('millors de tots', (await resum()).find(r => r[0] === 'Millors de tots')[1], '4');
+  check('mitjana dels seus temps', (await resum()).find(r => r[0] === 'Mitjana')[1], '01:24');
+  check('cara a cara: hi ha targeta', (await page.textContent('#playerbody')).includes('Cara a cara'), true);
+  check('i diu en quants coincidiu',
+    (await page.textContent('#playerbody')).includes('Coincidiu en 2 reptes'), true);
+  check('el teu temps primer i el seu després, als dos sentits',
+    await page.$$eval('#playerbody .vs__t', ts => ts.map(t => t.textContent)),
+    ['02:00.0', '01:30.0', '01:00.0', '01:30.0']);
+  check('i la diferència, amb signe',
+    await page.$$eval('#playerbody .summary__delta', ds => ds.map(d => [d.textContent, d.className])),
+    [['+30,0 s', 'summary__delta down'], ['−30,0 s', 'summary__delta up']]);
+  check('els que ha fet i tu no', (await page.textContent('#playerbody')).includes('Els que ha fet Anna i tu no · 3'), true);
+  check('els que has fet tu i ella no', (await page.textContent('#playerbody')).includes('Els que has fet tu i Anna no · 1'), true);
+
+  await page.$eval('#playerback', b => b.click());
+  await page.waitForTimeout(200);
+  check('des de la fitxa es torna a la classificació', await page.isVisible('#view-board'), true);
+
+  // sense compte no hi ha fitxa que valga
   await page.goto(URL + '/');
-  await seed(page, {
-    player: { token: 'fals', id: 1, name: 'Marc' }, times: TIMES, board: BOARD,
-  });
-  check('abans d’esborrar: la capçalera diu qui ets',
-    (await page.textContent('#whoami')).includes('Jugues com a'), true);
-  check('abans d’esborrar: el xip de competició es veu',
-    await page.isVisible('[data-filter="rival"]'), true);
-
-  await acceptConfirms();
-  await tap(page, '#wipe');
-  await restoreConfirms();
-
-  check('esborrar ho diu també a la capçalera',
-    (await page.textContent('#whoami')).includes('Jugues com a'), false);
-  check('esborrar amaga el xip de competició',
-    await page.isVisible('[data-filter="rival"]'), false);
-  check('esborrar amaga la llegenda dels punts',
-    await page.isVisible('#dotkey'), false);
+  await seed(page, {});
+  await page.goto(URL + '/#jugador=2');
+  await page.waitForSelector('.bead');
+  check('sense compte, la fitxa no s’obri', await page.isVisible('#view-player'), false);
 };
