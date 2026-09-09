@@ -154,4 +154,49 @@ module.exports = async function ({ page, check, tap, seed }) {
   check('en mode daltònic hi ha contorn: paint-order', fosca && fosca.paintOrder, 'stroke');
   check('en mode daltònic el contorn és el contrari del farciment',
     fosca && fosca.stroke, '#16110F');
+
+  // L'interruptor va fix a la cantonada i per damunt de la barra de filtres,
+  // que està enganxada a dalt. El perill és que li quede a sobre justament
+  // quan has fet scroll, que és quan la barra puja. Es comprova amb la pàgina
+  // desplaçada i a dues amplàries: ampla i estreta, on l'etiqueta es plega.
+  const marca = () => page.evaluate(() =>
+    getComputedStyle(document.querySelector('.cbswitch__knob'), '::after')
+      .content.replace(/["']/g, ''));
+
+  const noTapat = async ample => {
+    await page.setViewportSize({ width: ample, height: 800 });
+    await page.goto(URL + '/');
+    await page.waitForSelector('.bead');
+    await page.evaluate(() => window.scrollTo(0, 600));
+    return page.evaluate(() => {
+      const sw = document.querySelector('#cbmode');
+      const r = sw.getBoundingClientRect();
+      const sota = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      const solapa = ['#random', '#startsession', '#jump', '.segmented']
+        .map(s => document.querySelector(s))
+        .filter(Boolean)
+        .filter(e => {
+          const b = e.getBoundingClientRect();
+          return !(r.right <= b.left || r.left >= b.right ||
+                   r.bottom <= b.top || r.top >= b.bottom);
+        }).length;
+      return { tocable: !!sota && (sota === sw || sw.contains(sota)), solapa };
+    });
+  };
+
+  check('amb la finestra ampla i la pàgina avall, l’interruptor és tocable',
+    await noTapat(1280), { tocable: true, solapa: 0 });
+  check('amb la finestra estreta i la pàgina avall, també',
+    await noTapat(390), { tocable: true, solapa: 0 });
+
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto(URL + '/');
+  await seed(page, {});
+  check('apagat, l’interruptor marca O', await marca(), 'O');
+  await tap(page, '#cbmode');
+  check('encés, marca I', await marca(), 'I');
+  check('i el mode s’ha encés de veres',
+    await page.getAttribute('html', 'data-palette'), 'daltonic');
+  await tap(page, '#cbmode');
+  check('tornar-lo a tocar el torna a O', await marca(), 'O');
 };

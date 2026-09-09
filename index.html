@@ -21,6 +21,14 @@
 
 <a class="skip" href="#main">Vés al contingut</a>
 
+<!-- Preferència de tota l'aplicació, no d'una vista: per això viu fora de totes
+     i va fixa a la cantonada. I = encés, O = apagat, com un interruptor. -->
+<button type="button" id="cbmode" class="cbswitch" aria-pressed="false"
+        title="Colors pensats per al daltonisme roig-verd">
+  <span class="cbswitch__label">Daltònic</span>
+  <span class="cbswitch__track" aria-hidden="true"><b class="cbswitch__knob"></b></span>
+</button>
+
 <!-- ============ ÍNDEX ============ -->
 <div id="view-index" class="view">
   <header class="masthead">
@@ -273,7 +281,6 @@
     <button type="button" id="export" class="link">Exporta-ho tot</button>
     <button type="button" id="import" class="link">Importa-ho</button>
     <button type="button" id="wipe" class="link link--danger">Esborra-ho tot</button>
-    <button type="button" id="cbmode" class="link" aria-pressed="false">Mode daltònic</button>
     <a class="link" href="#invitacions" id="adminlink" hidden>Invitacions</a>
   </p>
   <input type="file" id="importfile" accept="application/json" hidden>
